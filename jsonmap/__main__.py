@@ -1,8 +1,8 @@
 """
-Parse program source code into something executable
+Run as a CLI
 """
 
-from jsonmap import tokens
+from jsonmap.parse import parser
 
 program = """
 recipient := firstName;
@@ -15,8 +15,4 @@ bar := for each foo.bar {
 foo = "bar";
 """
 
-
-tokenized = tokens.tokenize(program)
-
-for token in tokenized:
-    print(token)
+parser.parse(program)
