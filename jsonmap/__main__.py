@@ -13,6 +13,7 @@ bar := for each foo.bar {
     whoop = "dee do";
 };
 foo = "bar";
+computed_value := `${interpolated} ${text}`;
 """
 
 parser.parse(program)

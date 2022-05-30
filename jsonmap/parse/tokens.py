@@ -1,9 +1,15 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import List
+from typing import Iterable, List
 
 
+# pylint: disable=invalid-name
 class Category(Enum):
+    """
+    The different categories of tokens, which we will later assemble into the
+    AST
+    """
+
     semicolon = auto()
     assignment = auto()
     bracket = auto()
@@ -14,11 +20,25 @@ class Category(Enum):
 
 @dataclass(frozen=True)
 class Token:
+    """Represents a single AST token"""
+
     value: str
     category: Category
 
 
+def capture_string(stream: Iterable[str], delimiter: str) -> str:
+    """
+    Walk through the iterable and pull out a string literal sequence from the
+    source code.
+    """
+    token = []
+    while (next_char := next(stream)) != delimiter:
+        token.append(next_char)
+    return "".join(token)
+
+
 def tokenize(program: str) -> List[Token]:
+    """First pass of the source code, transform raw text into tokens"""
     tokens = []
     stream = iter(program)
 
@@ -45,15 +65,14 @@ def tokenize(program: str) -> List[Token]:
             case '"':
                 # if it's a string, read forward until we've reached the end of
                 # the string.
-                token = []
-                token.append('"')
-                while (next_char := next(stream)) != '"':
-                    token.append(next_char)
-                token.append('"')
+                token = capture_string(stream, '"')
                 tokens.append(Token("".join(token), Category.text))
+            case "`":
+                token = capture_string(stream, "`")
+                tokens.append(Token(token, Category.interpolation))
             case _:
-                token = []
-                token.append(character)
+                token = []  # type: ignore (this is due to a bug in mypy)
+                token.append(character)  # type: ignore (this is due to a bug in mypy)
                 found_semicolon = False
                 while (next_char := next(stream)).isspace() is not True:
                     if next_char == ";":
