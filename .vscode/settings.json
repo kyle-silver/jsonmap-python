@@ -2,6 +2,7 @@
     "editor.formatOnSave": true,
     "python.formatting.provider": "black",
     "python.formatting.blackPath": ".venv/bin/black",
+    "python.linting.enabled": true,
     "python.linting.mypyEnabled": true,
     "python.linting.mypyPath": ".venv/bin/mypy",
     "python.linting.pylintEnabled": true,

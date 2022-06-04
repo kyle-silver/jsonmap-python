@@ -15,7 +15,6 @@ bar = for each foo.bar {
 };
 foo = "bar";
 computed_value = `${interpolated} ${text}`;
-
 """
 
 parser.parse(program)

@@ -32,14 +32,14 @@ class SymbolToken(Token):
 
 
 @dataclass(frozen=True)
-class ReservedWord(Token):
+class BareWord(Token):
     """Represents a language keyword"""
 
     value: str
 
 
 @dataclass(frozen=True)
-class TextToken(Token):
+class LiteralToken(Token):
     """Token which contains a literal value"""
 
     text: str
@@ -132,7 +132,7 @@ def tokenize(program: str) -> List[Token]:
                 tokens.append(SymbolToken(Symbol.assignment))
             case '"':
                 token = capture_string(stream, delimiter='"')
-                tokens.append(TextToken("".join(token)))
+                tokens.append(LiteralToken("".join(token)))
             case "`":
                 token = capture_string(stream, delimiter="`")
                 tokens.append(InterpolationToken(token))
@@ -142,6 +142,6 @@ def tokenize(program: str) -> List[Token]:
                 tokens.append(SymbolToken(Symbol.semicolon))
             case _:
                 (bare_word, _) = capture_bare_word(stream, starting_letter=character, delimiters=[" "])
-                tokens.append(ReservedWord(bare_word))
+                tokens.append(BareWord(bare_word))
 
     return tokens
