@@ -20,6 +20,12 @@ computed_value = `${interpolated} ${text}`;
 prog2 = """
 "stringified left-hand side" = &!first."name";
 last_name = "foo bar {}";
+fizz = { 
+    buzz = { 
+        whiz = "bang"; 
+    }
+    widget = &wocket; 
+}
 """
 
 parser.parse(prog2)

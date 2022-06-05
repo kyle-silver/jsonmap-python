@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterator, List, Optional
 
+from more_itertools import peekable
+
 from jsonmap.parse.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
 
@@ -15,7 +17,7 @@ class AstNode(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> AstNode:
+    def parse(tokens: peekable[Token], **kwargs: str) -> AstNode:
         """
         Consume from the stream of tokens and construct the next node in the
         tree
@@ -27,7 +29,7 @@ class Lhs(AstNode):
     value: str
 
     @staticmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> Lhs:
+    def parse(tokens: peekable[Token], **kwargs: str) -> Lhs:
         match token := next(tokens):
             case BareWord(pos, value) | LiteralToken(pos, value):
                 return Lhs(pos, value)
@@ -40,14 +42,23 @@ class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
     @staticmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> Rhs:
+    def _assert_semicolon(tokens: Iterator[Token]) -> None:
+        if not (token := next(tokens)).is_symbol(Symbol.semicolon):
+            raise ValueError(f"Expected semicolon at position {token.position}")
+
+    @staticmethod
+    def parse(tokens: peekable[Token], **kwargs: str) -> Rhs:
         match token := next(tokens):
             case LiteralToken():
+                Rhs._assert_semicolon(tokens)
                 return ValueLiteral.new(token)
             case ReferenceToken():
+                Rhs._assert_semicolon(tokens)
                 return Reference.new(token)
-            case BareWord(pos, value):
-                return CollectionOperation.parse(tokens, keyword=value, position=token.position)  # type: ignore
+            case SymbolToken(position, symbol=Symbol.left_curly_brace):
+                return Scope.parse(tokens, position=position)  # type: ignore
+            case BareWord(position, value):
+                return CollectionOperation.parse(tokens, position=position, keyword=value)  # type: ignore
             case _:
                 raise ValueError(f"Invalid RHS at position {token.position}")
 
@@ -86,6 +97,12 @@ class Reference(Rhs):
 class Scope(Rhs):
     statements: List[Statement]
 
+    @staticmethod
+    def parse(tokens: peekable[Token], **kwargs: str) -> Scope:
+        # parse the inner scope contents
+        statements = assemble(tokens, inner_scope=True)
+        return Scope(kwargs["position"], statements)  # type: ignore
+
 
 @dataclass(frozen=True)
 class Array(Rhs):
@@ -101,7 +118,7 @@ class CollectionOperation(Scope):
     """
 
     @staticmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+    def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
         match kwargs["keyword"]:
             case "map":
                 return Map.parse(tokens)
@@ -116,7 +133,7 @@ class Map(CollectionOperation):
     source: Array
 
     @staticmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+    def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
         pass
 
 
@@ -125,7 +142,7 @@ class Zip(CollectionOperation):
     sources: List[Array]
 
     @staticmethod
-    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+    def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
         pass
 
 
@@ -135,10 +152,8 @@ class Statement:
     rhs: Rhs
 
 
-def assemble(tokens: List[Token]) -> List[Statement]:
+def assemble(stream: peekable[Token], inner_scope: bool = False) -> List[Statement]:
     """Transform the tokenized input into an executable abstract syntax tree"""
-
-    stream = iter(tokens)
     statements: List[Statement] = []
 
     while statement := consume_statement(stream):
@@ -147,7 +162,7 @@ def assemble(tokens: List[Token]) -> List[Statement]:
     return statements
 
 
-def consume_statement(stream: Iterator[Token]) -> Optional[Statement]:
+def consume_statement(stream: peekable[Token], inner_scope: bool = False) -> Optional[Statement]:
     """Consume a single statement from the token stream"""
     try:
         return _consume_statement(stream)
@@ -155,7 +170,15 @@ def consume_statement(stream: Iterator[Token]) -> Optional[Statement]:
         return None
 
 
-def _consume_statement(stream: Iterator[Token]) -> Statement:
+def _consume_statement(stream: peekable[Token], inner_scope: bool = False) -> Statement:
+    # if we reach the end of a scope, send a signal
+    if (token := stream.peek()).is_symbol(Symbol.right_curly_brace):
+        if not inner_scope:
+            next(stream)  # pop the curly brace
+            raise StopIteration()
+        else:
+            raise ValueError(f'Illegal symbol "}}" at position {token.position}')
+
     # get the name we will be binding the RHS to
     lhs = Lhs.parse(stream)
 
@@ -166,9 +189,5 @@ def _consume_statement(stream: Iterator[Token]) -> Statement:
 
     # now get the right-hand side
     rhs = Rhs.parse(stream)
-
-    # make sure it ends in a semicolon
-    if not (token := next(stream)).is_symbol(Symbol.semicolon):
-        raise ValueError(f"Missing semicolon at position {token.position}")
 
     return Statement(lhs, rhs)
