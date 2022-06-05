@@ -1,7 +1,10 @@
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, NewType, Tuple
+
+# just for ease of type signatures
+CharStream = Iterator[Tuple[int, str]]
 
 
 # pylint: disable=invalid-name
@@ -22,6 +25,8 @@ class Symbol(Enum):
 @dataclass(frozen=True)
 class Token(ABC):
     """Represents a single AST token"""
+
+    position: int
 
 
 @dataclass(frozen=True)
@@ -60,38 +65,41 @@ class ReferenceToken(Token):
     global_scope: bool = False
 
 
-def capture_string(stream: Iterator[str], delimiter: str) -> str:
+def capture_string(stream: CharStream, delimiter: str) -> str:
     """
     Walk through the iterable and pull out a string literal sequence from the
     source code.
     """
     token = []
-    while (next_char := next(stream)) != delimiter:
-        token.append(next_char)
+    while (item := next(stream))[1] != delimiter:
+        _, char = item
+        token.append(char)
     return "".join(token)
 
 
-def capture_bare_word(stream: Iterator[str], *, starting_letter: str, delimiters: List[str]) -> Tuple[str, str]:
+def capture_bare_word(stream: CharStream, *, starting_letter: str, delimiters: List[str]) -> Tuple[str, str]:
     token = [starting_letter]
     encountered_delimiter = None
-    while next_char := next(stream):
+    while item := next(stream):
+        _, next_char = item
         if next_char in delimiters:
             encountered_delimiter = next_char
             break
         token.append(next_char)
-    return ("".join(token), encountered_delimiter)  # type: ignore
+    return ("".join(token), encountered_delimiter)
 
 
-def parse_reference(stream: Iterator[str]) -> ReferenceToken:
+def parse_reference(stream: CharStream) -> ReferenceToken:
     path: List[str] = []
     global_scope = False
-    while next_char := next(stream):
+    while item := next(stream):
+        position, next_char = item
         match next_char:
             case ".":
                 continue
             case "!":
                 if len(path) > 0:
-                    raise ValueError('Illegal element in path "!"')
+                    raise ValueError(f'Illegal element in path "!" at position {position}')
                 global_scope = True
             case '"':
                 token = capture_string(stream, delimiter='"')
@@ -102,15 +110,16 @@ def parse_reference(stream: Iterator[str]) -> ReferenceToken:
                 path.append(bare_word)
                 if delimiter == ";":
                     break
-    return ReferenceToken(path, global_scope)
+    return ReferenceToken(position, path, global_scope)
 
 
 def tokenize(program: str) -> List[Token]:
     """First pass of the source code, transform raw text into tokens"""
     tokens: List[Token] = []
-    stream = iter(program)
+    stream: CharStream = enumerate(program)
 
-    while character := next(stream, None):
+    while next_item := next(stream, None):
+        position, character = next_item
         # skip whitespace
         if character.isspace():
             continue
@@ -119,29 +128,29 @@ def tokenize(program: str) -> List[Token]:
         # means the grammar is context-free?
         match character:
             case ";":
-                tokens.append(SymbolToken(Symbol.semicolon))
+                tokens.append(SymbolToken(position, Symbol.semicolon))
             case "{":
-                tokens.append(SymbolToken(Symbol.left_curly_brace))
+                tokens.append(SymbolToken(position, Symbol.left_curly_brace))
             case "}":
-                tokens.append(SymbolToken(Symbol.right_curly_brace))
+                tokens.append(SymbolToken(position, Symbol.right_curly_brace))
             case "[":
-                tokens.append(SymbolToken(Symbol.left_square_bracket))
+                tokens.append(SymbolToken(position, Symbol.left_square_bracket))
             case "]":
-                tokens.append(SymbolToken(Symbol.right_square_bracket))
+                tokens.append(SymbolToken(position, Symbol.right_square_bracket))
             case "=":
-                tokens.append(SymbolToken(Symbol.assignment))
+                tokens.append(SymbolToken(position, Symbol.assignment))
             case '"':
                 token = capture_string(stream, delimiter='"')
-                tokens.append(LiteralToken("".join(token)))
+                tokens.append(LiteralToken(position, "".join(token)))
             case "`":
                 token = capture_string(stream, delimiter="`")
-                tokens.append(InterpolationToken(token))
+                tokens.append(InterpolationToken(position, token))
             case "&":
                 reference = parse_reference(stream)
                 tokens.append(reference)
-                tokens.append(SymbolToken(Symbol.semicolon))
+                tokens.append(SymbolToken(position, Symbol.semicolon))
             case _:
                 (bare_word, _) = capture_bare_word(stream, starting_letter=character, delimiters=[" "])
-                tokens.append(BareWord(bare_word))
+                tokens.append(BareWord(position, bare_word))
 
     return tokens
