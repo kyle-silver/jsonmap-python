@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from typing import Iterator, List, NewType, Tuple
 
 # just for ease of type signatures
@@ -8,7 +8,7 @@ CharStream = Iterator[Tuple[int, str]]
 
 
 # pylint: disable=invalid-name
-class Symbol(Enum):
+class Symbol(IntEnum):
     """
     The different categories of tokens, which we will later assemble into the
     AST
@@ -27,6 +27,9 @@ class Token(ABC):
     """Represents a single AST token"""
 
     position: int
+
+    def is_symbol(self, symbol: Symbol) -> bool:
+        return isinstance(self, SymbolToken) and self.symbol == symbol
 
 
 @dataclass(frozen=True)

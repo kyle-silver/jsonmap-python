@@ -2,10 +2,14 @@
 Parse program source code into something executable
 """
 
-from jsonmap.parse import tokens
+from jsonmap.parse import tokens, ast
 
 
 def parse(program: str) -> None:
     """Parse the program and (eventually) return something executable"""
-    for token in tokens.tokenize(program):
+    program_tokens = tokens.tokenize(program)
+    for token in program_tokens:
         print(token)
+    abstract_syntax_tree = ast.assemble(program_tokens)
+    for node in abstract_syntax_tree:
+        print(node)

@@ -7,8 +7,11 @@ from typing import Iterator, List, Optional
 from jsonmap.parse.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
 
+@dataclass(frozen=True)  # type: ignore # this will be cleaned up when 3.11  comes out...
 class AstNode(ABC):
     """base class for all abstract syntax tree elements"""
+
+    position: int
 
     @staticmethod
     @abstractmethod
@@ -25,11 +28,11 @@ class Lhs(AstNode):
 
     @staticmethod
     def parse(tokens: Iterator[Token], **kwargs: str) -> Lhs:
-        match next(tokens, None):
-            case BareWord(value):
-                return Lhs(value)
+        match token := next(tokens):
+            case BareWord(pos, value) | LiteralToken(pos, value):
+                return Lhs(pos, value)
             case _:
-                raise ValueError("Invalid Lhs")
+                raise ValueError(f"Invalid Lhs at position {token.position}")
 
 
 @dataclass(frozen=True)
@@ -38,15 +41,15 @@ class Rhs(AstNode, ABC):
 
     @staticmethod
     def parse(tokens: Iterator[Token], **kwargs: str) -> Rhs:
-        match next(tokens):
-            case LiteralToken(text):
-                return ValueLiteral(value=text)
-            case ReferenceToken(path, global_scope):
-                return Reference(path, global_scope)
-            case BareWord(value):
-                return CollectionOperation.parse(tokens, keyword=value)
+        match token := next(tokens):
+            case LiteralToken():
+                return ValueLiteral.new(token)
+            case ReferenceToken():
+                return Reference.new(token)
+            case BareWord(pos, value):
+                return CollectionOperation.parse(tokens, keyword=value, position=token.position)  # type: ignore
             case _:
-                raise ValueError("Invalid RHS")
+                raise ValueError(f"Invalid RHS at position {token.position}")
 
 
 @dataclass(frozen=True)
@@ -54,6 +57,10 @@ class ValueLiteral(Rhs):
     """A non-object value (no calculation required)"""
 
     value: str
+
+    @staticmethod
+    def new(val: LiteralToken) -> ValueLiteral:
+        return ValueLiteral(val.position, val.text)
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,10 @@ class Reference(Rhs):
 
     path: List[str]
     global_scope: bool
+
+    @staticmethod
+    def new(ref: ReferenceToken) -> Reference:
+        return Reference(ref.position, ref.path, ref.global_scope)
 
 
 @dataclass(frozen=True)
@@ -97,7 +108,7 @@ class CollectionOperation(Scope):
             case "zip":
                 return Zip.parse(tokens)
             case _:
-                raise ValueError("Unrecognized loop operation")
+                raise ValueError(f"Unrecognized keyword at position {kwargs['position']}")
 
 
 @dataclass(frozen=True)
@@ -138,17 +149,26 @@ def assemble(tokens: List[Token]) -> List[Statement]:
 
 def consume_statement(stream: Iterator[Token]) -> Optional[Statement]:
     """Consume a single statement from the token stream"""
+    try:
+        return _consume_statement(stream)
+    except StopIteration:
+        return None
 
+
+def _consume_statement(stream: Iterator[Token]) -> Statement:
     # get the name we will be binding the RHS to
     lhs = Lhs.parse(stream)
 
     # make sure we have an assignment operator
-    match next(stream):
-        case SymbolToken(symbol):
-            if symbol != Symbol.assignment:
-                raise ValueError("Missing assignment operator")
+    if not (token := next(stream)).is_symbol(Symbol.assignment):
+        print(token)
+        raise ValueError(f"Missing assignment operator at position {token.position}")
 
     # now get the right-hand side
     rhs = Rhs.parse(stream)
+
+    # make sure it ends in a semicolon
+    if not (token := next(stream)).is_symbol(Symbol.semicolon):
+        raise ValueError(f"Missing semicolon at position {token.position}")
 
     return Statement(lhs, rhs)
