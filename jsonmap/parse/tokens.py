@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from abc import ABC
 from dataclasses import dataclass
-from enum import Enum, IntEnum, auto
-from typing import Iterator, List, NewType, Tuple
+from enum import IntEnum, auto
+from typing import Iterator, List, Tuple
 
-# just for ease of type signatures
 CharStream = Iterator[Tuple[int, str]]
 
 
@@ -14,7 +15,7 @@ class Symbol(IntEnum):
     AST
     """
 
-    semicolon = auto()
+    end_of_statement = auto()
     assignment = auto()
     left_curly_brace = auto()
     right_curly_brace = auto()
@@ -107,13 +108,15 @@ def parse_reference(stream: CharStream) -> ReferenceToken:
             case '"':
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
-            case ";":
+            case ";" | ",":
                 break
             case _:
                 # accumulate until we have a complete word
-                (bare_word, delimiter) = capture_bare_word(stream, starting_letter=next_char, delimiters=[".", ";"])
+                (bare_word, delimiter) = capture_bare_word(
+                    stream, starting_letter=next_char, delimiters=[".", ";", ","]
+                )
                 path.append(bare_word)
-                if delimiter == ";":
+                if delimiter != ".":
                     break
     return ReferenceToken(position, path, global_scope)
 
@@ -132,8 +135,8 @@ def tokenize(program: str) -> List[Token]:
         # separate the program into tokens by walking forward. I guess this
         # means the grammar is context-free?
         match character:
-            case ";":
-                tokens.append(SymbolToken(position, Symbol.semicolon))
+            case ";" | ",":
+                tokens.append(SymbolToken(position, Symbol.end_of_statement))
             case "{":
                 tokens.append(SymbolToken(position, Symbol.left_curly_brace))
             case "}":
@@ -142,7 +145,7 @@ def tokenize(program: str) -> List[Token]:
                 tokens.append(SymbolToken(position, Symbol.left_square_bracket))
             case "]":
                 tokens.append(SymbolToken(position, Symbol.right_square_bracket))
-            case "=":
+            case "=" | ":":
                 tokens.append(SymbolToken(position, Symbol.assignment))
             case '"':
                 token = capture_string(stream, delimiter='"')
@@ -153,9 +156,9 @@ def tokenize(program: str) -> List[Token]:
             case "&":
                 reference = parse_reference(stream)
                 tokens.append(reference)
-                tokens.append(SymbolToken(position, Symbol.semicolon))
+                tokens.append(SymbolToken(position, Symbol.end_of_statement))
             case _:
-                (bare_word, _) = capture_bare_word(stream, starting_letter=character, delimiters=[" "])
+                (bare_word, _) = capture_bare_word(stream, starting_letter=character, delimiters=[" ", ":"])
                 tokens.append(BareWord(position, bare_word))
 
     return tokens

@@ -30,6 +30,7 @@ class Lhs(AstNode):
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> Lhs:
+        # no-ops are legal, so we have to loop through them
         match token := next(tokens):
             case BareWord(pos, value) | LiteralToken(pos, value):
                 return Lhs(pos, value)
@@ -43,7 +44,7 @@ class Rhs(AstNode, ABC):
 
     @staticmethod
     def _assert_semicolon(tokens: Iterator[Token]) -> None:
-        if not (token := next(tokens)).is_symbol(Symbol.semicolon):
+        if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
             raise ValueError(f"Expected semicolon at position {token.position}")
 
     @staticmethod
