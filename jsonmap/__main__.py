@@ -18,7 +18,7 @@ computed_value = `${interpolated} ${text}`;
 """
 
 prog2 = """
-"stringified left-hand side" = &"first name";
+"stringified left-hand side" = &!first."name";
 last_name = "foo bar {}";
 """
 

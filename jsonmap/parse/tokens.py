@@ -107,6 +107,8 @@ def parse_reference(stream: CharStream) -> ReferenceToken:
             case '"':
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
+            case ";":
+                break
             case _:
                 # accumulate until we have a complete word
                 (bare_word, delimiter) = capture_bare_word(stream, starting_letter=next_char, delimiters=[".", ";"])
