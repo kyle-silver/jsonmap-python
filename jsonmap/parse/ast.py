@@ -1,27 +1,18 @@
 from __future__ import annotations
 
-
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Iterator, List, Optional, Type, TypeVar
-from typing_extensions import Self
+from typing import Iterator, List, Optional
 
 from jsonmap.parse.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
 
-# type variable for the AST node
-T = TypeVar("T", bound="AstNode")
-L = TypeVar("L", bound="Lhs")
-R = TypeVar("R", bound="Rhs")
-
-
-@dataclass(frozen=True)
 class AstNode(ABC):
     """base class for all abstract syntax tree elements"""
 
-    @classmethod
-    @abstractclassmethod
-    def parse(cls: Type[T], tokens: Iterator[Token]) -> T:
+    @staticmethod
+    @abstractmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> AstNode:
         """
         Consume from the stream of tokens and construct the next node in the
         tree
@@ -29,14 +20,14 @@ class AstNode(ABC):
 
 
 @dataclass(frozen=True)
-class Lhs:
+class Lhs(AstNode):
     value: str
 
-    @classmethod
-    def parse(cls: Type[L], tokens: Iterator[Token]) -> L:
+    @staticmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> Lhs:
         match next(tokens, None):
             case BareWord(value):
-                return cls(value)
+                return Lhs(value)
             case _:
                 raise ValueError("Invalid Lhs")
 
@@ -45,13 +36,15 @@ class Lhs:
 class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
-    @classmethod
-    def parse(cls: Type[R], tokens: Iterator[Token]) -> R:  # change this to typing.Self once 3.11 comes out...
-        match (next_token := next(tokens)):
+    @staticmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> Rhs:
+        match next(tokens):
             case LiteralToken(text):
-                return ValueLiteral(value=text)  # type: ignore
+                return ValueLiteral(value=text)
             case ReferenceToken(path, global_scope):
-                return Reference(path, global_scope)  # type: ignore
+                return Reference(path, global_scope)
+            case BareWord(value):
+                return CollectionOperation.parse(tokens, keyword=value)
             case _:
                 raise ValueError("Invalid RHS")
 
@@ -89,18 +82,40 @@ class Array(Rhs):
 
 
 @dataclass(frozen=True)
-class Loop(Scope):
-    pass
+class CollectionOperation(Scope):
+    """
+    A "collection operation" in this context means any action which is meant to
+    operate on a list-like JSON object, such as mapping list values or
+    performing a reduce or fold.
+    """
+
+    @staticmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+        match kwargs["keyword"]:
+            case "map":
+                return Map.parse(tokens)
+            case "zip":
+                return Zip.parse(tokens)
+            case _:
+                raise ValueError("Unrecognized loop operation")
 
 
 @dataclass(frozen=True)
-class Map(Loop):
+class Map(CollectionOperation):
     source: Array
 
+    @staticmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+        pass
+
 
 @dataclass(frozen=True)
-class Zip(Loop):
+class Zip(CollectionOperation):
     sources: List[Array]
+
+    @staticmethod
+    def parse(tokens: Iterator[Token], **kwargs: str) -> CollectionOperation:
+        pass
 
 
 @dataclass(frozen=True)
