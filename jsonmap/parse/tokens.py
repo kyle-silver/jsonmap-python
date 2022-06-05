@@ -99,14 +99,17 @@ def capture_bare_word(stream: peekable[Char], *, delimiters: List[str], first: O
 def parse_reference(stream: peekable[Char]) -> ReferenceToken:
     path: List[str] = []
     global_scope = False
+    position = None
     while item := stream.peek():
-        position, next_char = item
+        current_position, next_char = item
+        if position is None:
+            position = current_position  # only assign this once, the first time
         match next_char:
             case ".":
                 next(stream)  # pop the item
             case "!":
                 if len(path) > 0:
-                    raise ValueError(f'Illegal element in path "!" at position {position}')
+                    raise ValueError(f'Illegal element in path "!" at position {current_position}')
                 global_scope = True
                 next(stream)
             case '"':

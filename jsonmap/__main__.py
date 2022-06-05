@@ -2,7 +2,7 @@
 Run as a CLI
 """
 
-from jsonmap.parse import parser
+from jsonmap.parse import parser, tokens
 
 prog1 = """
 recipient = &firstName;
@@ -38,4 +38,6 @@ fizz = {
 }
 """
 
-parser.parse(prog3)
+parser.parse(prog2)
+
+print(tokens.tokenize("lhs = &rhs;"))
