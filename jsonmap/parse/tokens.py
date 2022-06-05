@@ -3,9 +3,13 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Iterator, List, Tuple
+from typing import List, Optional, Tuple
 
-CharStream = Iterator[Tuple[int, str]]
+from more_itertools import peekable
+
+
+# just for the ease of reading type signatures
+Char = Tuple[int, str]
 
 
 # pylint: disable=invalid-name
@@ -69,7 +73,7 @@ class ReferenceToken(Token):
     global_scope: bool = False
 
 
-def capture_string(stream: CharStream, delimiter: str) -> str:
+def capture_string(stream: peekable[Char], delimiter: str) -> str:
     """
     Walk through the iterable and pull out a string literal sequence from the
     source code.
@@ -81,50 +85,47 @@ def capture_string(stream: CharStream, delimiter: str) -> str:
     return "".join(token)
 
 
-def capture_bare_word(stream: CharStream, *, starting_letter: str, delimiters: List[str]) -> Tuple[str, str]:
-    token = [starting_letter]
-    encountered_delimiter = None
-    while item := next(stream):
+def capture_bare_word(stream: peekable[Char], *, delimiters: List[str], first: Optional[str] = None) -> str:
+    token = [first] if first else []
+    while item := stream.peek():
         _, next_char = item
         if next_char in delimiters:
-            encountered_delimiter = next_char
             break
         token.append(next_char)
-    return ("".join(token), encountered_delimiter)
+        next(stream)  # pop
+    return "".join(token)
 
 
-def parse_reference(stream: CharStream) -> ReferenceToken:
+def parse_reference(stream: peekable[Char]) -> ReferenceToken:
     path: List[str] = []
     global_scope = False
-    while item := next(stream):
+    while item := stream.peek():
         position, next_char = item
         match next_char:
             case ".":
-                continue
+                next(stream)  # pop the item
             case "!":
                 if len(path) > 0:
                     raise ValueError(f'Illegal element in path "!" at position {position}')
                 global_scope = True
+                next(stream)
             case '"':
+                next(stream)
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
             case ";" | ",":
                 break
             case _:
                 # accumulate until we have a complete word
-                (bare_word, delimiter) = capture_bare_word(
-                    stream, starting_letter=next_char, delimiters=[".", ";", ","]
-                )
+                bare_word = capture_bare_word(stream, delimiters=[".", ";", ","])
                 path.append(bare_word)
-                if delimiter != ".":
-                    break
     return ReferenceToken(position, path, global_scope)
 
 
 def tokenize(program: str) -> List[Token]:
     """First pass of the source code, transform raw text into tokens"""
     tokens: List[Token] = []
-    stream: CharStream = enumerate(program)
+    stream: peekable[Char] = peekable(enumerate(program))
 
     while next_item := next(stream, None):
         position, character = next_item
@@ -156,9 +157,8 @@ def tokenize(program: str) -> List[Token]:
             case "&":
                 reference = parse_reference(stream)
                 tokens.append(reference)
-                tokens.append(SymbolToken(position, Symbol.end_of_statement))
             case _:
-                (bare_word, _) = capture_bare_word(stream, starting_letter=character, delimiters=[" ", ":"])
+                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]"])
                 tokens.append(BareWord(position, bare_word))
 
     return tokens
