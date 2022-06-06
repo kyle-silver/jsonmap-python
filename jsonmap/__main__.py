@@ -31,13 +31,13 @@ fizz = {
         whiz = "bang";
     }
     widget = &fuzz;
-}
+};
 "json": {
     "foo": "bar",
     "fizz": {
         "buzz": "bang",
-    }
-}
+    },
+},
 """
 
 parser.parse(prog3)

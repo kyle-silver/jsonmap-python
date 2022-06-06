@@ -43,8 +43,22 @@ class Lhs(AstNode):
         match token := next(tokens):
             case BareWord(pos, value) | LiteralToken(pos, value):
                 return Lhs(pos, value)
+            case SymbolToken(pos, symbol=Symbol.end_of_statement):
+                return NoOpLhs(pos, "\0")
             case _:
                 raise JsonMapSyntaxError(token.position, f"Invalid start to expression: {token}")
+
+    def noop(self) -> bool:
+        """Indicates if the LHS is a no-op"""
+        return False
+
+
+@dataclass(frozen=True)
+class NoOpLhs(Lhs):
+    """No-op left hand side"""
+
+    def noop(self) -> bool:
+        return True
 
 
 @dataclass(frozen=True)
@@ -69,8 +83,15 @@ class Rhs(AstNode, ABC):
                 return Scope.parse(tokens, position=position)  # type: ignore
             case BareWord(position, value):
                 return CollectionOperation.parse(tokens, position=position, keyword=value)  # type: ignore
+            case SymbolToken(position, symbol=Symbol.left_square_bracket):
+                return Array.parse(tokens)
             case _:
                 raise JsonMapSyntaxError(token.position, f"Invalid right-hand side: {token}")
+
+
+@dataclass(frozen=True)
+class NoOpRhs(Rhs):
+    """No-op right hand side"""
 
 
 @dataclass(frozen=True)
@@ -83,6 +104,21 @@ class ValueLiteral(Rhs):
     def new(val: LiteralToken) -> ValueLiteral:
         """instantiate the value literal from its corresponding token"""
         return ValueLiteral(val.position, val.text)
+
+
+@dataclass(frozen=True)
+class NumericLiteral(Rhs):
+    """A numeric value"""
+
+    value: float
+
+    @staticmethod
+    def parse(tokens: peekable[Token], **kwargs: str) -> NumericLiteral:
+        match token := next(tokens):
+            case BareWord(position, value):
+                return NumericLiteral(position, float(value))
+            case _:
+                raise JsonMapSyntaxError(token.position, "Could not parse number")
 
 
 @dataclass(frozen=True)
@@ -128,8 +164,11 @@ class Array(Rhs):
     def parse(tokens: peekable[Token], **kwargs: str) -> Array:
         values = []
         position = tokens.peek().position
-        while not tokens.peek().is_symbol(Symbol.left_square_bracket):
+        while not tokens.peek().is_symbol(Symbol.right_square_bracket):
             values.append(Rhs.parse(tokens))
+            if tokens.peek().is_symbol(Symbol.end_of_statement):
+                next(tokens)  # skip commas in a list
+        next(tokens)  # pop the right square bracket before returning
         return Array(position, values)
 
 
@@ -143,12 +182,14 @@ class CollectionOperation(Scope):
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
-        match kwargs["keyword"]:
+        match bare_word := kwargs["keyword"]:
             case "map":
                 return Map.parse(tokens)
             case "zip":
                 return Zip.parse(tokens)
             case _:
+                if bare_word.isnumeric():  # this is kinda... not great...?
+                    return NumericLiteral(kwargs["position"], float())
                 raise ValueError(f"Unrecognized keyword at position {kwargs['position']}")
 
 
@@ -211,9 +252,12 @@ def _consume_statement(stream: peekable[Token], inner_scope: bool = False) -> St
     # get the name we will be binding the RHS to
     lhs = Lhs.parse(stream)
 
+    # check for no-op
+    if lhs.noop():
+        return Statement(lhs, NoOpRhs(lhs.position))
+
     # make sure we have an assignment operator
     if not (token := next(stream)).is_symbol(Symbol.assignment):
-        print(token)
         raise JsonMapSyntaxError(token.position, "Expected assignment operator (either equals or colon)")
 
     # now get the right-hand side

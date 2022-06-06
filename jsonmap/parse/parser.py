@@ -1,6 +1,7 @@
 """
 Parse program source code into something executable
 """
+import traceback
 
 from more_itertools import peekable
 from jsonmap.parse import tokens, ast, error
@@ -17,4 +18,5 @@ def parse(program: str) -> None:
         for node in abstract_syntax_tree:
             print(node)
     except JsonMapSyntaxError as syntax_error:
+        traceback.print_exc()
         error.handle(syntax_error, program)
