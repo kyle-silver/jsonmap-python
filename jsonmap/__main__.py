@@ -20,7 +20,7 @@ computed_value = `${interpolated} ${text}`;
 """
 
 prog2 = """
-lhs = [1, 2, 3];
+lhs = [-1.765, {"foo": "bar"}];
 """
 
 prog3 = """
@@ -33,10 +33,10 @@ fizz = {
     widget = &fuzz;
 };
 "json": {
-    "foo": "bar",
     "fizz": {
         "buzz": "bang",
     },
+    "foo": "bar"
 },
 """
 

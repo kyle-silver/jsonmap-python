@@ -66,7 +66,9 @@ class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
     @staticmethod
-    def _assert_end_of_statement(tokens: Iterator[Token]) -> None:
+    def _assert_end_of_statement(tokens: peekable[Token]) -> None:
+        if (token := tokens.peek()).is_symbol(Symbol.right_curly_brace) or token.is_symbol(Symbol.right_square_bracket):
+            return None
         if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
             raise JsonMapSyntaxError(token.position, "Expected end-of-statement symbol (semicolon or comma)")
 
@@ -82,6 +84,8 @@ class Rhs(AstNode, ABC):
             case SymbolToken(position, symbol=Symbol.left_curly_brace):
                 return Scope.parse(tokens, position=position)  # type: ignore
             case BareWord(position, value):
+                if parsed := NumericLiteral.parse_float(value):
+                    return NumericLiteral(position, parsed)
                 return CollectionOperation.parse(tokens, position=position, keyword=value)  # type: ignore
             case SymbolToken(position, symbol=Symbol.left_square_bracket):
                 return Array.parse(tokens)
@@ -113,12 +117,14 @@ class NumericLiteral(Rhs):
     value: float
 
     @staticmethod
-    def parse(tokens: peekable[Token], **kwargs: str) -> NumericLiteral:
-        match token := next(tokens):
-            case BareWord(position, value):
-                return NumericLiteral(position, float(value))
-            case _:
-                raise JsonMapSyntaxError(token.position, "Could not parse number")
+    def parse_float(value: str) -> Optional[float]:
+        """
+        attempt to parse a floating point number as a valid numeric literal
+        """
+        try:
+            return float(value)
+        except ValueError:
+            return None
 
 
 @dataclass(frozen=True)
@@ -189,7 +195,7 @@ class CollectionOperation(Scope):
                 return Zip.parse(tokens)
             case _:
                 if bare_word.isnumeric():  # this is kinda... not great...?
-                    return NumericLiteral(kwargs["position"], float())
+                    return NumericLiteral(kwargs["position"], float(bare_word))  # type: ignore
                 raise ValueError(f"Unrecognized keyword at position {kwargs['position']}")
 
 

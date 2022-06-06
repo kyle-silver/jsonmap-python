@@ -173,7 +173,7 @@ def tokenize(program: str) -> List[Token]:
                 reference = parse_reference(stream)
                 tokens.append(reference)
             case _:
-                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]", ","])
+                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]", ",", ";"])
                 tokens.append(BareWord(position, bare_word))
 
     return tokens
