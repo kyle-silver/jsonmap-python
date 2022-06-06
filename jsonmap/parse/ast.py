@@ -1,3 +1,9 @@
+"""
+Turns tokenized input into an abstract syntax tree which can then be interpreted
+and executed
+"""
+
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -27,6 +33,8 @@ class AstNode(ABC):
 
 @dataclass(frozen=True)
 class Lhs(AstNode):
+    """The left-hand side of a statement"""
+
     value: str
 
     @staticmethod
@@ -46,7 +54,7 @@ class Rhs(AstNode, ABC):
     @staticmethod
     def _assert_end_of_statement(tokens: Iterator[Token]) -> None:
         if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
-            raise JsonMapSyntaxError(token.position, f"Expected end-of-statement symbol (semicolon or comma)")
+            raise JsonMapSyntaxError(token.position, "Expected end-of-statement symbol (semicolon or comma)")
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> Rhs:
@@ -73,6 +81,7 @@ class ValueLiteral(Rhs):
 
     @staticmethod
     def new(val: LiteralToken) -> ValueLiteral:
+        """instantiate the value literal from its corresponding token"""
         return ValueLiteral(val.position, val.text)
 
 
@@ -92,11 +101,14 @@ class Reference(Rhs):
 
     @staticmethod
     def new(ref: ReferenceToken) -> Reference:
+        """instantiate a reference from its corresponding token"""
         return Reference(ref.position, ref.path, ref.global_scope)
 
 
 @dataclass(frozen=True)
 class Scope(Rhs):
+    """A collection of statements within an interior namespace"""
+
     statements: List[Statement]
 
     @staticmethod
@@ -108,6 +120,8 @@ class Scope(Rhs):
 
 @dataclass(frozen=True)
 class Array(Rhs):
+    """An ordered list of values with fixed size"""
+
     values: List[Rhs]
 
     @staticmethod
@@ -140,6 +154,8 @@ class CollectionOperation(Scope):
 
 @dataclass(frozen=True)
 class Map(CollectionOperation):
+    """A transformation over every item in a collection"""
+
     source: Array
 
     @staticmethod
@@ -149,6 +165,8 @@ class Map(CollectionOperation):
 
 @dataclass(frozen=True)
 class Zip(CollectionOperation):
+    """Iterate pairwise over a number of distinct collections"""
+
     sources: List[Array]
 
     @staticmethod
@@ -158,6 +176,8 @@ class Zip(CollectionOperation):
 
 @dataclass(frozen=True)
 class Statement:
+    """A self-contained unit of evaluation"""
+
     lhs: Lhs
     rhs: Rhs
 

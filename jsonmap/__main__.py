@@ -2,7 +2,9 @@
 Run as a CLI
 """
 
-from jsonmap.parse import parser, tokens
+# pylint: disable=invalid-name
+
+from jsonmap.parse import parser
 
 prog1 = """
 recipient = &firstName;
@@ -28,7 +30,7 @@ fizz = {
     buzz = { 
         whiz = "bang";
     }
-    widget = &wocket;
+    widget = &fuzz;
 }
 "json": {
     "foo": "bar",
@@ -39,5 +41,3 @@ fizz = {
 """
 
 parser.parse(prog3)
-
-# print(tokens.tokenize("lhs = &rhs;"))

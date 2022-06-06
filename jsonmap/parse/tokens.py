@@ -1,3 +1,8 @@
+"""
+Transform raw source input into a token stream which can then be assembled into
+an abstract syntax tree
+"""
+
 from __future__ import annotations
 
 from abc import ABC
