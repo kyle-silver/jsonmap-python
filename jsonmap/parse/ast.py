@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
 from more_itertools import peekable
 from jsonmap.parse.error import JsonMapSyntaxError
@@ -68,7 +68,7 @@ class Rhs(AstNode, ABC):
     @staticmethod
     def _assert_end_of_statement(tokens: peekable[Token]) -> None:
         if (token := tokens.peek()).is_symbol(Symbol.right_curly_brace) or token.is_symbol(Symbol.right_square_bracket):
-            return None
+            return
         if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
             raise JsonMapSyntaxError(token.position, "Expected end-of-statement symbol (semicolon or comma)")
 
