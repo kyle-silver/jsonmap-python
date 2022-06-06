@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Iterator, List, Optional
 
 from more_itertools import peekable
+from jsonmap.parse.error import JsonMapSyntaxError
 
 from jsonmap.parse.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
@@ -35,7 +36,7 @@ class Lhs(AstNode):
             case BareWord(pos, value) | LiteralToken(pos, value):
                 return Lhs(pos, value)
             case _:
-                raise ValueError(f"Invalid Lhs at position {token.position}")
+                raise JsonMapSyntaxError(token.position, f"Invalid start to expression: {token}")
 
 
 @dataclass(frozen=True)
@@ -43,25 +44,25 @@ class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
     @staticmethod
-    def _assert_semicolon(tokens: Iterator[Token]) -> None:
+    def _assert_end_of_statement(tokens: Iterator[Token]) -> None:
         if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
-            raise ValueError(f"Expected semicolon at position {token.position}")
+            raise JsonMapSyntaxError(token.position, f"Expected end-of-statement symbol (semicolon or comma)")
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> Rhs:
         match token := next(tokens):
             case LiteralToken():
-                Rhs._assert_semicolon(tokens)
+                Rhs._assert_end_of_statement(tokens)
                 return ValueLiteral.new(token)
             case ReferenceToken():
-                Rhs._assert_semicolon(tokens)
+                Rhs._assert_end_of_statement(tokens)
                 return Reference.new(token)
             case SymbolToken(position, symbol=Symbol.left_curly_brace):
                 return Scope.parse(tokens, position=position)  # type: ignore
             case BareWord(position, value):
                 return CollectionOperation.parse(tokens, position=position, keyword=value)  # type: ignore
             case _:
-                raise ValueError(f"Invalid RHS at position {token.position}")
+                raise JsonMapSyntaxError(token.position, f"Invalid right-hand side: {token}")
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,14 @@ class Scope(Rhs):
 @dataclass(frozen=True)
 class Array(Rhs):
     values: List[Rhs]
+
+    @staticmethod
+    def parse(tokens: peekable[Token], **kwargs: str) -> Array:
+        values = []
+        position = tokens.peek().position
+        while not tokens.peek().is_symbol(Symbol.left_square_bracket):
+            values.append(Rhs.parse(tokens))
+        return Array(position, values)
 
 
 @dataclass(frozen=True)
@@ -157,7 +166,7 @@ def assemble(stream: peekable[Token], inner_scope: bool = False) -> List[Stateme
     """Transform the tokenized input into an executable abstract syntax tree"""
     statements: List[Statement] = []
 
-    while statement := consume_statement(stream):
+    while statement := consume_statement(stream, inner_scope=inner_scope):
         statements.append(statement)
 
     return statements
@@ -166,7 +175,7 @@ def assemble(stream: peekable[Token], inner_scope: bool = False) -> List[Stateme
 def consume_statement(stream: peekable[Token], inner_scope: bool = False) -> Optional[Statement]:
     """Consume a single statement from the token stream"""
     try:
-        return _consume_statement(stream)
+        return _consume_statement(stream, inner_scope=inner_scope)
     except StopIteration:
         return None
 
@@ -174,11 +183,10 @@ def consume_statement(stream: peekable[Token], inner_scope: bool = False) -> Opt
 def _consume_statement(stream: peekable[Token], inner_scope: bool = False) -> Statement:
     # if we reach the end of a scope, send a signal
     if (token := stream.peek()).is_symbol(Symbol.right_curly_brace):
-        if not inner_scope:
+        if inner_scope:
             next(stream)  # pop the curly brace
             raise StopIteration()
-        else:
-            raise ValueError(f'Illegal symbol "}}" at position {token.position}')
+        raise JsonMapSyntaxError(token.position, 'Encountered unexpected end to scope "}}"')
 
     # get the name we will be binding the RHS to
     lhs = Lhs.parse(stream)
@@ -186,7 +194,7 @@ def _consume_statement(stream: peekable[Token], inner_scope: bool = False) -> St
     # make sure we have an assignment operator
     if not (token := next(stream)).is_symbol(Symbol.assignment):
         print(token)
-        raise ValueError(f"Missing assignment operator at position {token.position}")
+        raise JsonMapSyntaxError(token.position, "Expected assignment operator (either equals or colon)")
 
     # now get the right-hand side
     rhs = Rhs.parse(stream)

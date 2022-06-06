@@ -18,7 +18,7 @@ computed_value = `${interpolated} ${text}`;
 """
 
 prog2 = """
-"stringified left-hand side": &!first."name";
+lhs = [1, 2, 3];
 """
 
 prog3 = """
@@ -38,6 +38,6 @@ fizz = {
 }
 """
 
-parser.parse(prog2)
+parser.parse(prog3)
 
-print(tokens.tokenize("lhs = &rhs;"))
+# print(tokens.tokenize("lhs = &rhs;"))

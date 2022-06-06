@@ -7,6 +7,8 @@ from typing import List, Optional, Tuple
 
 from more_itertools import peekable
 
+from jsonmap.parse.error import JsonMapSyntaxError
+
 
 # just for the ease of reading type signatures
 Char = Tuple[int, str]
@@ -34,7 +36,8 @@ class Token(ABC):
     position: int
 
     def is_symbol(self, symbol: Symbol) -> bool:
-        return isinstance(self, SymbolToken) and self.symbol == symbol
+        """Test if this token instance is a symbol literal"""
+        return isinstance(self, SymbolToken) and self.symbol == symbol  # pylint: disable=no-member
 
 
 @dataclass(frozen=True)
@@ -86,6 +89,7 @@ def capture_string(stream: peekable[Char], delimiter: str) -> str:
 
 
 def capture_bare_word(stream: peekable[Char], *, delimiters: List[str], first: Optional[str] = None) -> str:
+    """Capture text which is not in quotation marks"""
     token = [first] if first else []
     while item := stream.peek():
         _, next_char = item
@@ -97,6 +101,9 @@ def capture_bare_word(stream: peekable[Char], *, delimiters: List[str], first: O
 
 
 def parse_reference(stream: peekable[Char]) -> ReferenceToken:
+    """
+    A field reference is a RHS expression referencing data from the input JSON
+    """
     path: List[str] = []
     global_scope = False
     position = None
@@ -109,7 +116,7 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
                 next(stream)  # pop the item
             case "!":
                 if len(path) > 0:
-                    raise ValueError(f'Illegal element in path "!" at position {current_position}')
+                    raise JsonMapSyntaxError(current_position, 'Illegal element in path "!"')
                 global_scope = True
                 next(stream)
             case '"':
@@ -161,7 +168,7 @@ def tokenize(program: str) -> List[Token]:
                 reference = parse_reference(stream)
                 tokens.append(reference)
             case _:
-                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]"])
+                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]", ","])
                 tokens.append(BareWord(position, bare_word))
 
     return tokens
