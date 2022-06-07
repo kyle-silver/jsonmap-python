@@ -75,14 +75,14 @@ class Rhs(AstNode, ABC):
             raise JsonMapSyntaxError(token.position, "Expected end-of-statement symbol (semicolon or comma)")
 
     @staticmethod
-    def parse(tokens: peekable[Token], **kwargs: str) -> Rhs:
+    def parse(tokens: peekable[Token], collection_argument: bool = False, **kwargs: str) -> Rhs:
         print(kwargs)
         match token := next(tokens):
             case LiteralToken():
                 Rhs._assert_end_of_statement(tokens)
                 return ValueLiteral.new(token)
             case ReferenceToken():
-                Rhs._assert_end_of_statement(tokens, collection_argument=kwargs.get("collection_argument", False))
+                Rhs._assert_end_of_statement(tokens, collection_argument)
                 return Reference.new(token)
             case SymbolToken(position, symbol=Symbol.left_curly_brace):
                 return Scope.parse(tokens, position=position)  # type: ignore
