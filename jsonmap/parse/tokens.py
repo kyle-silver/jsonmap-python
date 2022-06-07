@@ -100,6 +100,9 @@ def capture_bare_word(stream: peekable[Char], *, delimiters: List[str], first: O
         _, next_char = item
         if next_char in delimiters:
             break
+        if next_char.isspace():
+            next(stream)
+            break
         token.append(next_char)
         next(stream)  # pop
     return "".join(token)
@@ -128,7 +131,7 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
                 next(stream)
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
-            case ";" | ",":
+            case ";" | "," | "{" | "[":
                 break
             case _:
                 # accumulate until we have a complete word
@@ -173,7 +176,7 @@ def tokenize(program: str) -> List[Token]:
                 reference = parse_reference(stream)
                 tokens.append(reference)
             case _:
-                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]", ",", ";"])
+                bare_word = capture_bare_word(stream, first=character, delimiters=[" ", ":", "]", ",", ";", "}"])
                 tokens.append(BareWord(position, bare_word))
 
     return tokens

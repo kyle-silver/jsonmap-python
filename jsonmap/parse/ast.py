@@ -66,7 +66,9 @@ class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
     @staticmethod
-    def _assert_end_of_statement(tokens: peekable[Token]) -> None:
+    def _assert_end_of_statement(tokens: peekable[Token], collection_argument: bool = False) -> None:
+        if collection_argument:
+            return
         if (token := tokens.peek()).is_symbol(Symbol.right_curly_brace) or token.is_symbol(Symbol.right_square_bracket):
             return
         if not (token := next(tokens)).is_symbol(Symbol.end_of_statement):
@@ -74,12 +76,13 @@ class Rhs(AstNode, ABC):
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> Rhs:
+        print(kwargs)
         match token := next(tokens):
             case LiteralToken():
                 Rhs._assert_end_of_statement(tokens)
                 return ValueLiteral.new(token)
             case ReferenceToken():
-                Rhs._assert_end_of_statement(tokens)
+                Rhs._assert_end_of_statement(tokens, collection_argument=kwargs.get("collection_argument", False))
                 return Reference.new(token)
             case SymbolToken(position, symbol=Symbol.left_curly_brace):
                 return Scope.parse(tokens, position=position)  # type: ignore
@@ -188,14 +191,13 @@ class CollectionOperation(Scope):
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
-        match bare_word := kwargs["keyword"]:
+        print("parsing collection operation")
+        match kwargs["keyword"]:
             case "map":
-                return Map.parse(tokens)
+                return Map.parse(tokens, **kwargs)
             case "zip":
-                return Zip.parse(tokens)
+                return Zip.parse(tokens, **kwargs)
             case _:
-                if bare_word.isnumeric():  # this is kinda... not great...?
-                    return NumericLiteral(kwargs["position"], float(bare_word))  # type: ignore
                 raise ValueError(f"Unrecognized keyword at position {kwargs['position']}")
 
 
@@ -203,11 +205,26 @@ class CollectionOperation(Scope):
 class Map(CollectionOperation):
     """A transformation over every item in a collection"""
 
-    source: Array
+    source: Array | Reference
 
     @staticmethod
     def parse(tokens: peekable[Token], **kwargs: str) -> CollectionOperation:
-        pass
+        # for error handling
+        position: int = kwargs["position"]  # type: ignore
+        # after we parse the keyword, we expect an RHS with no end-of-statement
+        # symbol followed by a scope
+        source = Rhs.parse(tokens, collection_argument=True)
+        # we then expect an inner scope
+        if not (token := tokens.peek()).is_symbol(Symbol.left_curly_brace):
+            raise JsonMapSyntaxError(token.position, 'expected start of an inner scope "{"')
+        next(tokens)
+        # parse the inner scope
+        statements = Scope.parse(tokens, position=tokens.peek().position)  # type: ignore
+        match source:
+            case Array() | Reference():
+                return Map(position, statements.statements, source)
+            case _:
+                raise JsonMapSyntaxError(position, f"Unsupported argument for map {statements}")
 
 
 @dataclass(frozen=True)

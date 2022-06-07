@@ -40,4 +40,12 @@ fizz = {
 },
 """
 
-parser.parse(prog3)
+prog4 = """
+list = map &input_data {
+    fizz = &buzz;
+};
+foo = "bar";
+"fizz": &buzz;
+"""
+
+parser.parse(prog4)
