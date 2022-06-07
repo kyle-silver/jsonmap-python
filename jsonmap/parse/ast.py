@@ -44,7 +44,7 @@ class Lhs(AstNode):
             case BareWord(pos, value) | LiteralToken(pos, value):
                 return Lhs(pos, value)
             case SymbolToken(pos, symbol=Symbol.end_of_statement):
-                return NoOpLhs(pos, "\0")
+                return NoOpLhs(pos, "")
             case _:
                 raise JsonMapSyntaxError(token.position, f"Invalid start to expression: {token}")
 
