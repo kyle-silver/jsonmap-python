@@ -4,7 +4,10 @@ Run as a CLI
 
 # pylint: disable=invalid-name
 
-from jsonmap.parse import parser
+from pprint import pprint
+import sys
+from jsonmap.parse.error import JsonMapSyntaxError
+from jsonmap.parse.parser import Program
 
 prog1 = """
 recipient = &firstName;
@@ -54,4 +57,8 @@ list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] {
 }
 """
 
-parser.parse(prog5)
+try:
+    program = Program.parse(prog5)
+    pprint(program.statements)
+except JsonMapSyntaxError:
+    sys.exit(1)
