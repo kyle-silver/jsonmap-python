@@ -2,8 +2,8 @@
 
 from unittest import TestCase
 
-from jsonmap.parse import tokens
-from jsonmap.parse.tokens import BareWord, LiteralToken, ReferenceToken, Symbol, SymbolToken
+from jsonmap import tokens
+from jsonmap.tokens import BareWord, LiteralToken, ReferenceToken, Symbol, SymbolToken
 
 
 class SingleStatementTokenization(TestCase):

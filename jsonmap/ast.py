@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from more_itertools import peekable
-from jsonmap.parse.error import JsonMapSyntaxError
+from jsonmap.error import JsonMapSyntaxError
 
-from jsonmap.parse.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
+from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
 
 @dataclass(frozen=True)  # type: ignore # this will be cleaned up when 3.11  comes out...

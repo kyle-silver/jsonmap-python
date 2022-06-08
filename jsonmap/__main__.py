@@ -6,8 +6,8 @@ Run as a CLI
 
 from pprint import pprint
 import sys
-from jsonmap.parse.error import JsonMapSyntaxError
-from jsonmap.parse.parser import Program
+from jsonmap.error import JsonMapSyntaxError
+from jsonmap.parser import Program
 
 prog1 = """
 recipient = &firstName;

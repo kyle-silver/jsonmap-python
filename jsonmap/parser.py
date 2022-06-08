@@ -9,8 +9,8 @@ import traceback
 from typing import List
 
 from more_itertools import peekable
-from jsonmap.parse import tokens, ast, error
-from jsonmap.parse.error import JsonMapSyntaxError
+from jsonmap import tokens, ast, error
+from jsonmap.error import JsonMapSyntaxError
 
 
 @dataclass(frozen=True)

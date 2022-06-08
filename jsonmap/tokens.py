@@ -12,7 +12,7 @@ from typing import List, Optional, Tuple
 
 from more_itertools import peekable
 
-from jsonmap.parse.error import JsonMapSyntaxError
+from jsonmap.error import JsonMapSyntaxError
 
 
 # just for the ease of reading type signatures
