@@ -232,13 +232,31 @@ class Map(CollectionOperation):
 class Zip(CollectionOperation):
     """Iterate pairwise over a number of distinct collections"""
 
-    sources: List[Array]
+    sources: List[Array | Reference]
+
+    @staticmethod
+    def _parse_zip_args(tokens: peekable[Token], position: int) -> List[Array | Reference]:
+        sources = []
+        while not tokens.peek().is_symbol(Symbol.left_curly_brace):
+            source = Rhs.parse(tokens, collection_argument=True)
+            match source:
+                case Array() | Reference():
+                    sources.append(source)
+                case _:
+                    raise JsonMapSyntaxError(position, "Invalid argument for zip")
+        return sources
 
     @staticmethod
     def parse(
         tokens: peekable[Token], *, position: int = 0, keyword: str = "", collection_argument: bool = False
     ) -> CollectionOperation:
-        pass
+        sources = Zip._parse_zip_args(tokens, position)
+        # in order for the above statement to return, it would have had to have
+        # been a left curly brace
+        next(tokens)
+        # parse the inner scope
+        statements = Scope.parse(tokens, position=tokens.peek().position)
+        return Zip(position, statements.statements, sources)
 
 
 @dataclass(frozen=True)

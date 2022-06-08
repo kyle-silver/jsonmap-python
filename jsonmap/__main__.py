@@ -41,11 +41,17 @@ fizz = {
 """
 
 prog4 = """
-list = map &input_data {
+list = map [{"foo": "bar"},{"foo": "fizz"}] {
     fizz = &buzz;
 };
 foo = "bar";
 "fizz": &buzz;
 """
 
-parser.parse(prog4)
+prog5 = """
+list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] {
+    foo = &bar;
+}
+"""
+
+parser.parse(prog5)
