@@ -49,7 +49,7 @@ foo = "bar";
 """
 
 prog5 = """
-list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] "foo"{
+list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] {
     foo = &bar;
 }
 """

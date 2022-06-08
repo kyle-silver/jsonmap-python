@@ -13,11 +13,7 @@ def parse(program: str) -> None:
     """Parse the program and (eventually) return something executable"""
     try:
         program_tokens = tokens.tokenize(program)
-        # for token in program_tokens:
-        #     print(token)
         abstract_syntax_tree = ast.assemble(peekable(program_tokens))
-        # for node in abstract_syntax_tree:
-        #     print(node)
         pprint.pprint(abstract_syntax_tree)
     except JsonMapSyntaxError as syntax_error:
         traceback.print_exc()
