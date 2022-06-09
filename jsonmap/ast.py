@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from more_itertools import peekable
 from jsonmap.error import JsonMapSyntaxError
+from jsonmap.typedefs import Json
 
 from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
@@ -265,6 +266,12 @@ class Statement:
 
     lhs: Lhs
     rhs: Rhs
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Tuple[str, Json]:
+        """
+        Apply the mapping from the source json to the new value for the given
+        instruction
+        """
 
 
 def assemble(stream: peekable[Token], inner_scope: bool = False) -> List[Statement]:

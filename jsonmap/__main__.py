@@ -7,7 +7,7 @@ Run as a CLI
 from pprint import pprint
 import sys
 from jsonmap.error import JsonMapSyntaxError
-from jsonmap.parser import Program
+from jsonmap.parser import JsonMapping
 
 prog1 = """
 recipient = &firstName;
@@ -58,7 +58,7 @@ list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] {
 """
 
 try:
-    program = Program.parse(prog5)
+    program = JsonMapping(prog5)
     pprint(program.statements)
 except JsonMapSyntaxError:
     sys.exit(1)

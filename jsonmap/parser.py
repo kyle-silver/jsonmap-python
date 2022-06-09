@@ -11,31 +11,29 @@ from typing import List
 from more_itertools import peekable
 from jsonmap import tokens, ast, error
 from jsonmap.error import JsonMapSyntaxError
+from jsonmap.typedefs import Json
 
 
-@dataclass(frozen=True)
-class Program:
+@dataclass
+class JsonMapping:
+    """Encapsulates the transformations to be performed on input JSON"""
+
     statements: List[ast.Statement]
 
-    @staticmethod
-    def parse(program: str) -> Program:
+    def __init__(self, program: str) -> None:
         try:
             program_tokens = tokens.tokenize(program)
-            abstract_syntax_tree = ast.assemble(peekable(program_tokens))
-            return Program(abstract_syntax_tree)
+            self.statements = ast.assemble(peekable(program_tokens))
+            pprint.pprint(self.statements)
         except JsonMapSyntaxError as syntax_error:
             traceback.print_exc()
             error.handle(syntax_error, program)
             raise syntax_error
 
-
-def parse(program: str) -> None:
-    """Parse the program and (eventually) return something executable"""
-    try:
-        program_tokens = tokens.tokenize(program)
-        abstract_syntax_tree = ast.assemble(peekable(program_tokens))
-        pprint.pprint(abstract_syntax_tree)
-    except JsonMapSyntaxError as syntax_error:
-        traceback.print_exc()
-        error.handle(syntax_error, program)
-        raise syntax_error
+    def apply(self, data: Json) -> Json:
+        """Map a JSON document"""
+        output = {}
+        for statement in self.statements:
+            key, value = statement.evaluate(data)
+            output[key] = value
+        return output
