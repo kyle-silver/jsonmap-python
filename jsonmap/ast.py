@@ -90,7 +90,7 @@ class Rhs(AstNode, ABC):
                 Rhs._assert_end_of_statement(tokens)
                 return NoOpRhs(position)
             case BareWord(position, value):
-                if parsed := NumericLiteral.parse_float(value):
+                if (parsed := NumericLiteral.parse_float(value)) is not None:
                     return NumericLiteral(position, parsed)
                 return CollectionOperation.parse(tokens, position=position, keyword=value)
             case SymbolToken(position, symbol=Symbol.left_square_bracket):
@@ -215,7 +215,7 @@ class Array(Rhs):
         return Array(position, values)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        return None
+        return [rhs.evaluate(scope, universe) for rhs in self.values]
 
 
 @dataclass(frozen=True)
@@ -230,7 +230,6 @@ class CollectionOperation(Scope):
     def parse(
         tokens: peekable[Token], *, position: int = 0, keyword: str = "", collection_argument: bool = False
     ) -> CollectionOperation:
-        print("parsing collection operation")
         match keyword:
             case "bind":
                 return Bind.parse(tokens, position=position)
@@ -239,7 +238,7 @@ class CollectionOperation(Scope):
             case "zip":
                 return Zip.parse(tokens, position=position)
             case _:
-                raise ValueError(f"Unrecognized keyword at position {position}")
+                raise JsonMapSyntaxError(position, f'Unrecognized keyword "{keyword}"')
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         return None

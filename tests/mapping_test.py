@@ -70,3 +70,16 @@ class Mappings(TestCase):
                 }
             },
         )
+
+    def test_array_evaluation(self) -> None:
+        actual = JsonMapping(
+            """
+            foo = [null, 1.4, "hello", &bar, [0, 1, 2], {whiz = &bang}];
+            """
+        ).apply(json.loads('{"bar": "hello", "bang": "world"}'))
+        self.assertEqual(
+            actual,
+            {
+                "foo": [None, 1.4, "hello", "hello", [0, 1, 2], {"whiz": "world"}],
+            },
+        )
