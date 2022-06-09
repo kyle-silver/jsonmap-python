@@ -43,3 +43,30 @@ class Mappings(TestCase):
         data = json.loads('{"bar": null}')
         actual = mapping.apply(data)
         self.assertEqual(actual, {"foo": None, "fizz": None})
+
+    def test_deep_reference(self) -> None:
+        mapping = JsonMapping("foo = &bar.fizz.buzz;")
+        data = json.loads('{"bar": {"fizz": {"buzz": 0}}}')
+        actual = mapping.apply(data)
+        self.assertEqual(actual, {"foo": 0})
+
+    def test_scope(self) -> None:
+        mapping = JsonMapping(
+            """
+            foo = {
+                bar = &fizz,
+                "buzz": {"baz": &boo}
+            },
+            """
+        )
+        data = json.loads('{"fizz": ["hello"], "boo": "world"}')
+        actual = mapping.apply(data)
+        self.assertEqual(
+            actual,
+            {
+                "foo": {
+                    "bar": ["hello"],
+                    "buzz": {"baz": "world"},
+                }
+            },
+        )

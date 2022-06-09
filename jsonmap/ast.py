@@ -189,7 +189,12 @@ class Scope(Rhs):
         return Scope(position, statements)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        return None
+        output = {}
+        for statement in self.statements:
+            if result := statement.evaluate(scope, universe):
+                key, value = result
+                output[key] = value
+        return output
 
 
 @dataclass(frozen=True)
@@ -227,6 +232,8 @@ class CollectionOperation(Scope):
     ) -> CollectionOperation:
         print("parsing collection operation")
         match keyword:
+            case "bind":
+                return Bind.parse(tokens, position=position)
             case "map":
                 return Map.parse(tokens, position=position)
             case "zip":
@@ -236,6 +243,33 @@ class CollectionOperation(Scope):
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         return None
+
+
+@dataclass(frozen=True)
+class Bind(CollectionOperation):
+    """binds a namespace for shorter reference paths"""
+
+    reference: Reference
+
+    @staticmethod
+    def parse(
+        tokens: peekable[Token], *, position: int = 0, keyword: str = "", collection_argument: bool = False
+    ) -> CollectionOperation:
+        # after we parse the keyword, we expect an RHS with no end-of-statement
+        # symbol followed by a scope
+        reference = Rhs.parse(tokens, collection_argument=True)
+        match reference:
+            case Reference():
+                pass
+            case _:
+                raise JsonMapSyntaxError(position, f"Unsupported argument for bind {reference}")
+        # we then expect an inner scope
+        if not (token := tokens.peek()).is_symbol(Symbol.left_curly_brace):
+            raise JsonMapSyntaxError(token.position, 'expected start of an inner scope "{"')
+        next(tokens)
+        # parse the inner scope
+        statements = Scope.parse(tokens, position=tokens.peek().position)
+        return Bind(position, statements.statements, reference)
 
 
 @dataclass(frozen=True)
@@ -251,17 +285,18 @@ class Map(CollectionOperation):
         # after we parse the keyword, we expect an RHS with no end-of-statement
         # symbol followed by a scope
         source = Rhs.parse(tokens, collection_argument=True)
+        match source:
+            case Array() | Reference():
+                pass
+            case _:
+                raise JsonMapSyntaxError(position, f"Unsupported argument for map {source}")
         # we then expect an inner scope
         if not (token := tokens.peek()).is_symbol(Symbol.left_curly_brace):
             raise JsonMapSyntaxError(token.position, 'expected start of an inner scope "{"')
         next(tokens)
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
-        match source:
-            case Array() | Reference():
-                return Map(position, statements.statements, source)
-            case _:
-                raise JsonMapSyntaxError(position, f"Unsupported argument for map {statements}")
+        return Map(position, statements.statements, source)
 
 
 @dataclass(frozen=True)

@@ -131,11 +131,11 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
                 next(stream)
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
-            case ";" | "," | "{" | "[":
+            case ";" | "," | "{" | "[" | "}" | "]":
                 break
             case _:
                 # accumulate until we have a complete word
-                bare_word = capture_bare_word(stream, delimiters=[".", ";", ","])
+                bare_word = capture_bare_word(stream, delimiters=list(".;,{}[]"))
                 path.append(bare_word)
     return ReferenceToken(position, path, global_scope)
 
