@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from more_itertools import peekable
+from jsonmap import data
 from jsonmap.error import JsonMapSyntaxError
-from jsonmap.typedefs import Json
+from jsonmap.data import Json
 
 from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
@@ -95,10 +96,19 @@ class Rhs(AstNode, ABC):
             case _:
                 raise JsonMapSyntaxError(token.position, f"Invalid right-hand side: {token}")
 
+    @abstractmethod
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        """
+        Fetch the value of the mapped data from the input JSON
+        """
+
 
 @dataclass(frozen=True)
 class NoOpRhs(Rhs):
     """No-op right hand side"""
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -111,6 +121,9 @@ class ValueLiteral(Rhs):
     def new(val: LiteralToken) -> ValueLiteral:
         """instantiate the value literal from its corresponding token"""
         return ValueLiteral(val.position, val.text)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -129,12 +142,18 @@ class NumericLiteral(Rhs):
         except ValueError:
             return None
 
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
+
 
 @dataclass(frozen=True)
 class ObjectLiteral(Rhs):
     """An embedded JSON object"""
 
     tokens: List[str]
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -149,6 +168,11 @@ class Reference(Rhs):
         """instantiate a reference from its corresponding token"""
         return Reference(ref.position, ref.path, ref.global_scope)
 
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        if self.global_scope:
+            return data.resolve(self.path, universe)
+        return data.resolve(self.path, scope)
+
 
 @dataclass(frozen=True)
 class Scope(Rhs):
@@ -161,6 +185,9 @@ class Scope(Rhs):
         # parse the inner scope contents
         statements = assemble(tokens, inner_scope=True)
         return Scope(position, statements)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -179,6 +206,9 @@ class Array(Rhs):
                 next(tokens)  # skip commas in a list
         next(tokens)  # pop the right square bracket before returning
         return Array(position, values)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -201,6 +231,9 @@ class CollectionOperation(Scope):
                 return Zip.parse(tokens, position=position)
             case _:
                 raise ValueError(f"Unrecognized keyword at position {position}")
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        return None
 
 
 @dataclass(frozen=True)
@@ -267,11 +300,19 @@ class Statement:
     lhs: Lhs
     rhs: Rhs
 
-    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Tuple[str, Json]:
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Optional[Tuple[str, Json]]:
         """
         Apply the mapping from the source json to the new value for the given
         instruction
         """
+        # maybe allowing no-ops was a mistake...
+        if isinstance(self.lhs, NoOpLhs):
+            return None
+        key = self.lhs.value
+
+        # evaluate the right-hand-side
+        value = self.rhs.evaluate(scope, universe)
+        return (key, value)
 
 
 def assemble(stream: peekable[Token], inner_scope: bool = False) -> List[Statement]:

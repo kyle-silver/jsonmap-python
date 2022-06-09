@@ -11,7 +11,7 @@ from typing import List
 from more_itertools import peekable
 from jsonmap import tokens, ast, error
 from jsonmap.error import JsonMapSyntaxError
-from jsonmap.typedefs import Json
+from jsonmap.data import Json
 
 
 @dataclass
@@ -34,6 +34,6 @@ class JsonMapping:
         """Map a JSON document"""
         output = {}
         for statement in self.statements:
-            key, value = statement.evaluate(data)
+            key, value = statement.evaluate(scope=data, universe=data)
             output[key] = value
         return output

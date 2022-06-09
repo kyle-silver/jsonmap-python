@@ -9,6 +9,6 @@ from jsonmap import JsonMapping
 class Mappings(TestCase):
     def test_reference_mapping(self) -> None:
         prog = JsonMapping("foo = &bar;")
-        data = json.loads('{"foo": "hello, world!"}')
+        data = json.loads('{"bar": "hello, world!"}')
         actual = prog.apply(data)
-        self.assertEqual(actual, {"bar": "hello, world!"})
+        self.assertEqual(actual, {"foo": "hello, world!"})
