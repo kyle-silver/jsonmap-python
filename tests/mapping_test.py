@@ -12,3 +12,22 @@ class Mappings(TestCase):
         data = json.loads('{"bar": "hello, world!"}')
         actual = prog.apply(data)
         self.assertEqual(actual, {"foo": "hello, world!"})
+
+    def test_reference_and_literal_mappings(self) -> None:
+        mapping = JsonMapping(
+            """
+            foo = &bar;
+            fizz = "buzz";
+            count = 5;
+            """
+        )
+        data = json.loads('{"bar": "hello, world!"}')
+        actual = mapping.apply(data)
+        self.assertEqual(
+            actual,
+            {
+                "foo": "hello, world!",
+                "fizz": "buzz",
+                "count": 5,
+            },
+        )

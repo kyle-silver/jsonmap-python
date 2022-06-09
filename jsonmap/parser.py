@@ -34,6 +34,7 @@ class JsonMapping:
         """Map a JSON document"""
         output = {}
         for statement in self.statements:
-            key, value = statement.evaluate(scope=data, universe=data)
-            output[key] = value
+            if result := statement.evaluate(scope=data, universe=data):
+                key, value = result
+                output[key] = value
         return output

@@ -63,7 +63,6 @@ class NoOpLhs(Lhs):
         return True
 
 
-@dataclass(frozen=True)
 class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
@@ -123,7 +122,7 @@ class ValueLiteral(Rhs):
         return ValueLiteral(val.position, val.text)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        return None
+        return self.value
 
 
 @dataclass(frozen=True)
@@ -143,7 +142,7 @@ class NumericLiteral(Rhs):
             return None
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        return None
+        return self.value
 
 
 @dataclass(frozen=True)
