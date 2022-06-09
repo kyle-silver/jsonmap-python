@@ -86,6 +86,9 @@ class Rhs(AstNode, ABC):
                 return Reference.new(token)
             case SymbolToken(position, symbol=Symbol.left_curly_brace):
                 return Scope.parse(tokens, position=position)
+            case BareWord(position, value="null"):
+                Rhs._assert_end_of_statement(tokens)
+                return NoOpRhs(position)
             case BareWord(position, value):
                 if parsed := NumericLiteral.parse_float(value):
                     return NumericLiteral(position, parsed)
