@@ -83,3 +83,23 @@ class Mappings(TestCase):
                 "foo": [None, 1.4, "hello", "hello", [0, 1, 2], {"whiz": "world"}],
             },
         )
+
+    def test_bind(self) -> None:
+        actual = JsonMapping(
+            """
+            foo = bind &bar {
+                "first": &first,
+                "second": &second.third,
+                fourth: &!fourth
+            }
+            """
+        ).apply(
+            {
+                "fourth": 4,
+                "bar": {
+                    "first": 1,
+                    "second": {"third": 3},
+                },
+            }
+        )
+        self.assertEqual(actual, {"foo": {"first": 1, "second": 3, "fourth": 4}})

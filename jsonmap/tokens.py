@@ -119,6 +119,8 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
         current_position, next_char = item
         if position is None:
             position = current_position  # only assign this once, the first time
+        if next_char.isspace():
+            break
         match next_char:
             case ".":
                 next(stream)  # pop the item

@@ -240,9 +240,6 @@ class CollectionOperation(Scope):
             case _:
                 raise JsonMapSyntaxError(position, f'Unrecognized keyword "{keyword}"')
 
-    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        return None
-
 
 @dataclass(frozen=True)
 class Bind(CollectionOperation):
@@ -269,6 +266,17 @@ class Bind(CollectionOperation):
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
         return Bind(position, statements.statements, reference)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        narrowed_scope = data.resolve(self.reference.path, scope)
+        match narrowed_scope:
+            case dict():
+                return super().evaluate(narrowed_scope, universe)
+            case _:
+                raise ValueError(
+                    "The reference passed as an argument to bind must resolve to a JSON object. "
+                    f'The reference path {self.reference} instead resolved to "{narrowed_scope}"'
+                )
 
 
 @dataclass(frozen=True)
