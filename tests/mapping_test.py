@@ -103,3 +103,32 @@ class Mappings(TestCase):
             }
         )
         self.assertEqual(actual, {"foo": {"first": 1, "second": 3, "fourth": 4}})
+
+    def test_nested_bind(self) -> None:
+        actual = JsonMapping(
+            """
+            foo = bind &"first scope" {
+                bar = bind &"second scope" {
+                    fizz = &buzz;
+                }
+            }
+            """
+        ).apply(
+            {
+                "first scope": {
+                    "second scope": {
+                        "buzz": "hello",
+                    }
+                }
+            }
+        )
+        self.assertEqual(
+            actual,
+            {
+                "foo": {
+                    "bar": {
+                        "fizz": "hello",
+                    }
+                }
+            },
+        )
