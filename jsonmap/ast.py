@@ -323,7 +323,7 @@ class Map(CollectionOperation):
                 raise ValueError("Unsupported map argument")
         # check to make sure we have a list-like object
         if not isinstance(to_map, Iterable):
-            raise ValueError("Must")
+            raise ValueError('The argument to "map" must be iterable')
         output = []
         for item in to_map:
             output.append(super().evaluate(item, universe))

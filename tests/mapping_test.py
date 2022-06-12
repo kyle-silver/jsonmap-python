@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring
 
 import json
+from pprint import pprint
 from unittest import TestCase
 
 from jsonmap import JsonMapping
@@ -134,3 +135,20 @@ class Mappings(TestCase):
             """
         ).apply({"students": [{"first_name": "alice"}, {"first_name": "bob"}]})
         self.assertEqual(actual, {"student_first_names": [{"name": "alice"}, {"name": "bob"}]})
+
+    def test_map_on_array_literals(self) -> None:
+        """
+        Not sure of the semantics here for when the array items are not objects.
+        How should the user access these values when they are anonymous? Do we
+        need to introduce a special syntax? Or should we just decide that
+        iterating over an array of literals is not allowed since we don't offer
+        any transformations on anonymous values?
+        """
+        actual = JsonMapping(
+            """
+            names = map [{"first_name": &"first_student"}, {"first_name": "bob"}] {
+                "name": &"first_name"
+            }
+            """
+        ).apply({"first_student": "alice"})
+        self.assertEqual(actual, {"names": [{"name": "alice"}, {"name": "bob"}]})
