@@ -7,6 +7,7 @@ and executed
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
@@ -297,13 +298,36 @@ class Map(CollectionOperation):
                 pass
             case _:
                 raise JsonMapSyntaxError(position, f"Unsupported argument for map {source}")
-        # we then expect an inner scope
+        # TODO we actually need two kinds of `map` functionality. The current
+        # implementation only supports lists of objects, but in order for this
+        # to be useful we should also support lists of anonymous values. I think
+        # the best way to implement this is with the following two syntaxes:
+        #     1. `map &ref { lhs = rhs; ...}` for objects, and
+        #     2. `map &ref [rhs]` for anonymous values
         if not (token := tokens.peek()).is_symbol(Symbol.left_curly_brace):
+            # we then expect an inner scope
             raise JsonMapSyntaxError(token.position, 'expected start of an inner scope "{"')
         next(tokens)
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
         return Map(position, statements.statements, source)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        # retrieve the data we will be iterating over
+        match self.source:
+            case Array():
+                to_map = self.source.evaluate(scope, universe)
+            case Reference():
+                to_map = data.resolve(self.source.path, scope)
+            case _:
+                raise ValueError("Unsupported map argument")
+        # check to make sure we have a list-like object
+        if not isinstance(to_map, Iterable):
+            raise ValueError("Must")
+        output = []
+        for item in to_map:
+            output.append(super().evaluate(item, universe))
+        return output
 
 
 @dataclass(frozen=True)

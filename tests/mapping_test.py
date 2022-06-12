@@ -113,15 +113,7 @@ class Mappings(TestCase):
                 }
             }
             """
-        ).apply(
-            {
-                "first scope": {
-                    "second scope": {
-                        "buzz": "hello",
-                    }
-                }
-            }
-        )
+        ).apply({"first scope": {"second scope": {"buzz": "hello"}}})
         self.assertEqual(
             actual,
             {
@@ -132,3 +124,13 @@ class Mappings(TestCase):
                 }
             },
         )
+
+    def test_map(self) -> None:
+        actual = JsonMapping(
+            """
+            student_first_names = map &students {
+                name = &first_name;
+            }
+            """
+        ).apply({"students": [{"first_name": "alice"}, {"first_name": "bob"}]})
+        self.assertEqual(actual, {"student_first_names": [{"name": "alice"}, {"name": "bob"}]})
