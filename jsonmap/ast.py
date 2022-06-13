@@ -64,6 +64,11 @@ class NoOpLhs(Lhs):
         return True
 
 
+@dataclass(frozen=True)
+class AnonymousLhs(Lhs):
+    """A left hand side with no name"""
+
+
 class Rhs(AstNode, ABC):
     """The right-hand side of the assignment expression"""
 
@@ -181,7 +186,8 @@ class Reference(Rhs):
 class Scope(Rhs):
     """A collection of statements within an interior namespace"""
 
-    statements: List[Statement]
+    # single statement scopes are anonymous
+    contents: Statement | List[Statement]
 
     @staticmethod
     def parse(tokens: peekable[Token], *, collection_argument: bool = False, position: int = 0) -> Scope:
@@ -190,12 +196,18 @@ class Scope(Rhs):
         return Scope(position, statements)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        output = {}
-        for statement in self.statements:
-            if result := statement.evaluate(scope, universe):
-                key, value = result
-                output[key] = value
-        return output
+        match self.contents:
+            case list():
+                return dict(
+                    result for statement in self.contents if (result := statement.evaluate(scope, universe)) is not None
+                )
+            case Statement():
+                if result := self.contents.evaluate(scope, universe):
+                    _, value = result
+                    return value
+                raise ValueError("Illegal statement evaluation")
+            case _:
+                raise ValueError("Illegal scope type")
 
 
 @dataclass(frozen=True)
@@ -266,7 +278,7 @@ class Bind(CollectionOperation):
         next(tokens)
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
-        return Bind(position, statements.statements, reference)
+        return Bind(position, statements.contents, reference)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         narrowed_scope = data.resolve(self.reference.path, scope)
@@ -298,19 +310,19 @@ class Map(CollectionOperation):
                 pass
             case _:
                 raise JsonMapSyntaxError(position, f"Unsupported argument for map {source}")
-        # TODO we actually need two kinds of `map` functionality. The current
-        # implementation only supports lists of objects, but in order for this
-        # to be useful we should also support lists of anonymous values. I think
-        # the best way to implement this is with the following two syntaxes:
-        #     1. `map &ref { lhs = rhs; ...}` for objects, and
-        #     2. `map &ref [rhs]` for anonymous values
-        if not (token := tokens.peek()).is_symbol(Symbol.left_curly_brace):
-            # we then expect an inner scope
-            raise JsonMapSyntaxError(token.position, 'expected start of an inner scope "{"')
-        next(tokens)
+        match tokens.peek():
+            case SymbolToken(symbol=Symbol.left_curly_brace):
+                next(tokens)
+                statements = Scope.parse(tokens, position=tokens.peek().position).contents
+            case SymbolToken(position, symbol=Symbol.left_square_bracket):
+                next(tokens)
+                array = Array.parse(tokens).values
+                if len(array) != 1:
+                    raise ValueError("Only one entry is allowed in the anonymous map scope")
+                statements = Statement(AnonymousLhs(position, ""), array[0])
         # parse the inner scope
-        statements = Scope.parse(tokens, position=tokens.peek().position)
-        return Map(position, statements.statements, source)
+        # statements = Scope.parse(tokens, position=tokens.peek().position)
+        return Map(position, statements, source)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         # retrieve the data we will be iterating over
@@ -358,7 +370,10 @@ class Zip(CollectionOperation):
         next(tokens)
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
-        return Zip(position, statements.statements, sources)
+        return Zip(position, statements.contents, sources)
+
+
+ScopeEntry = Tuple[str, Json]
 
 
 @dataclass(frozen=True)
@@ -368,15 +383,18 @@ class Statement:
     lhs: Lhs
     rhs: Rhs
 
-    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Optional[Tuple[str, Json]]:
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Optional[ScopeEntry]:
         """
         Apply the mapping from the source json to the new value for the given
         instruction
         """
-        # maybe allowing no-ops was a mistake...
-        if isinstance(self.lhs, NoOpLhs):
-            return None
-        key = self.lhs.value
+        match self.lhs:
+            case NoOpLhs():
+                return None
+            case AnonymousLhs():
+                key = ""  # this is a placeholder to satisfy our type system
+            case _:
+                key = self.lhs.value
 
         # evaluate the right-hand-side
         value = self.rhs.evaluate(scope, universe)

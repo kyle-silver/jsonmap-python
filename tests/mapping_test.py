@@ -152,3 +152,13 @@ class Mappings(TestCase):
             """
         ).apply({"first_student": "alice"})
         self.assertEqual(actual, {"names": [{"name": "alice"}, {"name": "bob"}]})
+
+    def test_anonymous_values(self) -> None:
+        mapping = JsonMapping(
+            """
+            names = map &students [&first_name];
+            """
+        )
+        pprint(mapping)
+        actual = mapping.apply({"students": [{"first_name": "alice"}, {"first_name": "bob"}]})
+        self.assertEqual(actual, {"names": ["alice", "bob"]})
