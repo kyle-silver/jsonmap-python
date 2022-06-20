@@ -143,6 +143,14 @@ class Mappings(TestCase):
         need to introduce a special syntax? Or should we just decide that
         iterating over an array of literals is not allowed since we don't offer
         any transformations on anonymous values?
+
+        bar map [1, 2, 3, 4] {
+            foo = &<+>,
+            foo = &*;
+            foo = &?;
+            foo = &#;
+            foo = &$; &!
+        }
         """
         actual = JsonMapping(
             """
@@ -154,11 +162,32 @@ class Mappings(TestCase):
         self.assertEqual(actual, {"names": [{"name": "alice"}, {"name": "bob"}]})
 
     def test_anonymous_values(self) -> None:
-        mapping = JsonMapping(
+        actual = JsonMapping(
             """
             names = map &students [&first_name];
             """
-        )
-        pprint(mapping)
-        actual = mapping.apply({"students": [{"first_name": "alice"}, {"first_name": "bob"}]})
+        ).apply({"students": [{"first_name": "alice"}, {"first_name": "bob"}]})
         self.assertEqual(actual, {"names": ["alice", "bob"]})
+
+    def test_silly_but_legal_anonymous_mapping(self) -> None:
+        actual = JsonMapping(
+            """
+            names = map &students [{"first name": &"first_name", "last name": &"last_name"}]
+            """
+        ).apply(
+            {
+                "students": [
+                    {"first_name": "alice", "last_name": "aardvark"},
+                    {"first_name": "bob", "last_name": "badger"},
+                ]
+            }
+        )
+        self.assertEqual(
+            actual,
+            {
+                "names": [
+                    {"first name": "alice", "last name": "aardvark"},
+                    {"first name": "bob", "last name": "badger"},
+                ]
+            },
+        )
