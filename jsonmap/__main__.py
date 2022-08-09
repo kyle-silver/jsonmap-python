@@ -5,60 +5,19 @@ Run as a CLI
 # pylint: disable=invalid-name
 
 from pprint import pprint
-import sys
-from jsonmap.error import JsonMapSyntaxError
 from jsonmap.parser import JsonMapping
 
-prog1 = """
-recipient = &firstName;
-last_name = "foo bar {}";
-fizz = { buzz = "bang"; };
-bar = map &foo.bar {
-    whiz = &bang;
-    whoop = "dee do";
-    globally_mapped = &!firstName."middle name".lastName;
-};
-foo = "bar";
-computed_value = `${interpolated} ${text}`;
-"""
-
-prog2 = """
-lhs = [-1.765, {"foo": "bar"}];
-"""
-
-prog3 = """
-"stringified left-hand side": &!first."name";
-last_name: "foo bar {}";
-fizz = { 
-    buzz = { 
-        whiz = "bang";
+actual = JsonMapping(
+    """
+    names = map &students [{"first name": &"first_name", "last name": &"last_name"}]
+    """
+).apply(
+    {
+        "students": [
+            {"first_name": "alice", "last_name": "aardvark"},
+            {"first_name": "bob", "last_name": "badger"},
+        ]
     }
-    widget = &fuzz;
-};
-"json": {
-    "fizz": {
-        "buzz": "bang",
-    },
-    "foo": "bar"
-},
-"""
+)
 
-prog4 = """
-list = map [{"foo": "bar"},{"foo": "fizz"}] {
-    fizz = &buzz;
-};
-foo = "bar";
-"fizz": &buzz;
-"""
-
-prog5 = """
-list = zip &ref1 [&foo, &bar, {"fizz": "buzz"}] {
-    foo = &bar;
-}
-"""
-
-try:
-    program = JsonMapping(prog5)
-    pprint(program.statements)
-except JsonMapSyntaxError:
-    sys.exit(1)
+pprint(actual)

@@ -7,9 +7,8 @@ and executed
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from more_itertools import peekable
 from jsonmap import data
@@ -17,6 +16,18 @@ from jsonmap.error import JsonMapSyntaxError
 from jsonmap.data import Json
 
 from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
+
+
+def collate(source: Array | Reference, scope: Json, universe: Optional[Json] = None) -> List[Any] | Dict[str, Any]:
+    match source:
+        case Array():
+            to_map = source.evaluate(scope, universe)
+        case Reference():
+            to_map = data.resolve(source.path, scope)
+    # check to make sure we have a list-like object
+    if not isinstance(to_map, (list, dict)):
+        raise ValueError('The argument to "map" must be iterable')
+    return to_map
 
 
 @dataclass(frozen=True)  # type: ignore # this will be cleaned up when 3.11  comes out...
@@ -325,21 +336,7 @@ class Map(CollectionOperation):
         return Map(position, statements, source)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        # retrieve the data we will be iterating over
-        match self.source:
-            case Array():
-                to_map = self.source.evaluate(scope, universe)
-            case Reference():
-                to_map = data.resolve(self.source.path, scope)
-            case _:
-                raise ValueError("Unsupported map argument")
-        # check to make sure we have a list-like object
-        if not isinstance(to_map, Iterable):
-            raise ValueError('The argument to "map" must be iterable')
-        output = []
-        for item in to_map:
-            output.append(super().evaluate(item, universe))
-        return output
+        return [super(Map, self).evaluate(item, universe) for item in collate(self.source, scope, universe)]
 
 
 @dataclass(frozen=True)
@@ -371,6 +368,20 @@ class Zip(CollectionOperation):
         # parse the inner scope
         statements = Scope.parse(tokens, position=tokens.peek().position)
         return Zip(position, statements.contents, sources)
+
+    def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
+        print(f"SCOPE: {self.sources}")
+        arguments = [collate(source, scope, universe) for source in self.sources]
+        print(f"ARGS: {arguments}")
+        merged_scopes = []
+        for scopes in zip(*arguments):
+            merged: Dict[str, Json] = {}
+            for component_scope in scopes:
+                merged |= component_scope
+            merged_scopes.append(merged)
+
+        print(f"ZIPPED: {merged_scopes}")
+        return [super(Zip, self).evaluate(zipped_scope, universe) for zipped_scope in merged_scopes]
 
 
 ScopeEntry = Tuple[str, Json]

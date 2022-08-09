@@ -4,7 +4,6 @@ Parse program source code into something executable
 from __future__ import annotations
 
 from dataclasses import dataclass
-import pprint
 import traceback
 from typing import List
 
@@ -24,7 +23,6 @@ class JsonMapping:
         try:
             program_tokens = tokens.tokenize(program)
             self.statements = ast.assemble(peekable(program_tokens))
-            pprint.pprint(self.statements)
         except JsonMapSyntaxError as syntax_error:
             traceback.print_exc()
             error.handle(syntax_error, program)

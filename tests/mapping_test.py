@@ -191,3 +191,27 @@ class Mappings(TestCase):
                 ]
             },
         )
+
+    def test_simple_zip(self) -> None:
+        actual = JsonMapping(
+            """
+            grades = zip &names &grades {
+                name = &name;
+                grade = &grade;
+            }
+            """
+        ).apply(
+            {
+                "names": [{"name": "alice"}, {"name": "bob"}],
+                "grades": [{"grade": "a"}, {"grade": "b"}],
+            }
+        )
+        self.assertEqual(
+            actual,
+            {
+                "grades": [
+                    {"name": "alice", "grade": "a"},
+                    {"name": "bob", "grade": "b"},
+                ]
+            },
+        )

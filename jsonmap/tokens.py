@@ -8,6 +8,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import IntEnum, auto
+import pprint
 from typing import List, Optional, Tuple
 
 from more_itertools import peekable
@@ -137,7 +138,7 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
                 break
             case _:
                 # accumulate until we have a complete word
-                bare_word = capture_bare_word(stream, delimiters=[".", ";", ",", "{", "}", "[", "]", "]"])
+                bare_word = capture_bare_word(stream, delimiters=[".", ";", ",", "{", "}", "[", "]", "]", " "])
                 path.append(bare_word)
     return ReferenceToken(position, path, global_scope)
 
