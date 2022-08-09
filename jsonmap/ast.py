@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import reduce
+import operator
 from typing import Any, Dict, List, Optional, Tuple
 
 from more_itertools import peekable
@@ -370,17 +372,9 @@ class Zip(CollectionOperation):
         return Zip(position, statements.contents, sources)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
-        print(f"SCOPE: {self.sources}")
-        arguments = [collate(source, scope, universe) for source in self.sources]
-        print(f"ARGS: {arguments}")
-        merged_scopes = []
-        for scopes in zip(*arguments):
-            merged: Dict[str, Json] = {}
-            for component_scope in scopes:
-                merged |= component_scope
-            merged_scopes.append(merged)
-
-        print(f"ZIPPED: {merged_scopes}")
+        resolved = [collate(source, scope, universe) for source in self.sources]
+        zipped = zip(*resolved)
+        merged_scopes: List[Dict[str, Json]] = [reduce(operator.ior, scopes, {}) for scopes in zipped]
         return [super(Zip, self).evaluate(zipped_scope, universe) for zipped_scope in merged_scopes]
 
 
