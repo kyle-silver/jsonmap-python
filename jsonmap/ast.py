@@ -21,6 +21,10 @@ from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, Litera
 
 
 def collate(source: Array | Reference, scope: Json, universe: Optional[Json] = None) -> List[Any] | Dict[str, Any]:
+    """
+    Resolves all references which are required as part of the argument to a
+    function
+    """
     match source:
         case Array():
             to_map = source.evaluate(scope, universe)
