@@ -137,29 +137,6 @@ class Mappings(TestCase):
         self.assertEqual(actual, {"student_first_names": [{"name": "alice"}, {"name": "bob"}]})
 
     def test_map_on_array_literals(self) -> None:
-        """
-        Not sure of the semantics here for when the array items are not objects.
-        How should the user access these values when they are anonymous? Do we
-        need to introduce a special syntax? Or should we just decide that
-        iterating over an array of literals is not allowed since we don't offer
-        any transformations on anonymous values?
-
-        bar = map [1, 2, 3, 4] {
-            foo = &<+>,
-            foo = &*;
-            foo = &?;
-            foo = &#;
-            foo = &$; &!
-        }
-
-        bar = map [1,2,3,4] {
-            foo = &?;
-        }
-        baz = zip [1,2,3] ["one", "two", "three"] {
-            value = &?.0
-            name = &?.1;
-        }
-        """
         actual = JsonMapping(
             """
             names = map [{"first_name": &"first_student"}, {"first_name": "bob"}] {
