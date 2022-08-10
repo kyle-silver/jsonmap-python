@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import traceback
-from typing import List
+from typing import Dict, List
 
 from more_itertools import peekable
 from jsonmap import tokens, ast, error
@@ -30,7 +30,7 @@ class JsonMapping:
 
     def apply(self, data: Json) -> Json:
         """Map a JSON document"""
-        output = {}
+        output: Dict[str | int, Json] = {}
         for statement in self.statements:
             if result := statement.evaluate(scope=data, universe=data):
                 key, value = result
