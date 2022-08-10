@@ -7,6 +7,7 @@
     "python.linting.mypyPath": ".venv/bin/mypy",
     "python.linting.pylintEnabled": true,
     "python.linting.pylintPath": ".venv/bin/pylint",
+    "markdown.extension.toc.levels": "2..6",
     "cSpell.words": [
         "dataclass",
         "deanonymized",
