@@ -1,9 +1,10 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring
 
+from pprint import pprint
 from unittest import TestCase
 
 from jsonmap import tokens
-from jsonmap.tokens import BareWord, LiteralToken, ReferenceToken, Symbol, SymbolToken
+from jsonmap.tokens import BareWord, ListIndexReferenceToken, LiteralToken, ReferenceToken, Symbol, SymbolToken
 
 
 class SingleStatementTokenization(TestCase):
@@ -46,3 +47,20 @@ class SingleStatementTokenization(TestCase):
         self.assertEqual(next(actual), BareWord(20, "7"))
         self.assertEqual(next(actual), SymbolToken(21, Symbol.right_square_bracket))
         self.assertEqual(next(actual), SymbolToken(22, Symbol.end_of_statement))
+
+    def test_list_index_reference(self) -> None:
+        actual = tokens.tokenize("foo = map [] {bar = &?;}")
+        self.assertTrue(ListIndexReferenceToken(position=21, path=[], global_scope=False) in actual)
+
+    def test_zipped_list_references(self) -> None:
+        actual = tokens.tokenize(
+            """
+            foo = zip &fizz &buzz {
+                bar = &?.1;
+                baz = &?.-10;
+            }
+            """
+        )
+        pprint(actual)
+        self.assertTrue(ListIndexReferenceToken(position=60, path=[1], global_scope=False) in actual)
+        self.assertTrue(ListIndexReferenceToken(position=88, path=[-10], global_scope=False) in actual)

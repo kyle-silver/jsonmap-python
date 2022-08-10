@@ -10,17 +10,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import reduce
 import operator
-from typing import Any, Dict, List, Optional, Tuple
+from pprint import pprint
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
 
 from more_itertools import peekable
 from jsonmap import data
 from jsonmap.error import JsonMapSyntaxError
 from jsonmap.data import Json
 
-from jsonmap.tokens import BareWord, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
+from jsonmap.tokens import BareWord, ListIndexReferenceToken, ReferenceToken, Symbol, SymbolToken, LiteralToken, Token
 
 
-def collate(source: Array | Reference, scope: Json, universe: Optional[Json] = None) -> List[Any] | Dict[str, Any]:
+def collate(
+    source: Array | Reference, scope: Json, universe: Optional[Json] = None
+) -> List[Any] | Dict[str | int, Any]:
     """
     Resolves all references which are required as part of the argument to a
     function
@@ -104,6 +107,9 @@ class Rhs(AstNode, ABC):
             case LiteralToken():
                 Rhs._assert_end_of_statement(tokens)
                 return ValueLiteral.new(token)
+            case ListIndexReferenceToken():
+                Rhs._assert_end_of_statement(tokens, collection_argument)
+                return ListIndexReference.new(token)
             case ReferenceToken():
                 Rhs._assert_end_of_statement(tokens, collection_argument)
                 return Reference.new(token)
@@ -181,22 +187,34 @@ class ObjectLiteral(Rhs):
         return None
 
 
+R = TypeVar("R", bound="Reference")
+
+
 @dataclass(frozen=True)
 class Reference(Rhs):
     """A reference to an existing field in the input JSON"""
 
-    path: List[str]
+    path: List[str | int]
     global_scope: bool
 
-    @staticmethod
-    def new(ref: ReferenceToken) -> Reference:
+    @classmethod
+    def new(cls: Type[R], ref: ReferenceToken) -> R:
         """instantiate a reference from its corresponding token"""
-        return Reference(ref.position, ref.path, ref.global_scope)
+        return cls(ref.position, ref.path, ref.global_scope)
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         if self.global_scope:
             return data.resolve(self.path, universe)
         return data.resolve(self.path, scope)
+
+
+@dataclass(frozen=True)
+class ListIndexReference(Reference):
+    """
+    When using a collection operation on a list of anonymous values (e.g. map
+    over an array of Numbers) we need a way to reference which positional
+    argument a value came from.
+    """
 
 
 @dataclass(frozen=True)
@@ -377,8 +395,23 @@ class Zip(CollectionOperation):
 
     def evaluate(self, scope: Json, universe: Optional[Json] = None) -> Json:
         resolved = [collate(source, scope, universe) for source in self.sources]
-        zipped = zip(*resolved)
-        merged_scopes: List[Dict[str, Json]] = [reduce(operator.ior, scopes, {}) for scopes in zipped]
+        # if we have a list of non-object values (ints, strings, etc.) then we
+        # turn them into dictionaries with the position of the zip argument they
+        # came from as the index. This will not cause a naming conflict because
+        # JSON keys can only be strings, where these newly-inserted keys will
+        # always be integers. Is it a bit of a hack? Yes. It is. Oh well...
+        indexed = []
+        for index, arg_list in enumerate(resolved):
+            if all(isinstance(arg, dict) for arg in arg_list):
+                print("all dictionaries!")
+                indexed.append(arg_list)
+            else:
+                deanonymized = [{index: arg} for arg in arg_list]
+                indexed.append(deanonymized)
+
+        zipped = zip(*indexed)
+        merged_scopes: List[Dict[str | int, Json]] = [reduce(operator.ior, scopes, {}) for scopes in zipped]
+        pprint(merged_scopes)
         return [super(Zip, self).evaluate(zipped_scope, universe) for zipped_scope in merged_scopes]
 
 

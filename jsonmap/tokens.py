@@ -8,7 +8,6 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import IntEnum, auto
-import pprint
 from typing import List, Optional, Tuple
 
 from more_itertools import peekable
@@ -78,8 +77,13 @@ class InterpolationToken(Token):
 class ReferenceToken(Token):
     """Token which references a namespace in the input JSON"""
 
-    path: List[str]
+    path: List[str | int]
     global_scope: bool = False
+
+
+@dataclass(frozen=True)
+class ListIndexReferenceToken(ReferenceToken):
+    """References an item's position in a list rather than its field name"""
 
 
 def capture_string(stream: peekable[Char], delimiter: str) -> str:
@@ -113,9 +117,10 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
     """
     A field reference is a RHS expression referencing data from the input JSON
     """
-    path: List[str] = []
+    path: List[str | int] = []
     global_scope = False
     position = None
+    is_list_index = False
     while item := stream.peek():
         current_position, next_char = item
         if position is None:
@@ -134,12 +139,20 @@ def parse_reference(stream: peekable[Char]) -> ReferenceToken:
                 next(stream)
                 token = capture_string(stream, delimiter='"')
                 path.append(token)
+            case "?":
+                next(stream)
+                is_list_index = True
             case ";" | "," | "{" | "[" | "}" | "]":
                 break
             case _:
                 # accumulate until we have a complete word
                 bare_word = capture_bare_word(stream, delimiters=[".", ";", ",", "{", "}", "[", "]", "]", " "])
-                path.append(bare_word)
+                if is_list_index:
+                    path.append(int(bare_word))
+                else:
+                    path.append(bare_word)
+    if is_list_index:
+        return ListIndexReferenceToken(position, path, global_scope)
     return ReferenceToken(position, path, global_scope)
 
 

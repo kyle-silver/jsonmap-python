@@ -144,12 +144,20 @@ class Mappings(TestCase):
         iterating over an array of literals is not allowed since we don't offer
         any transformations on anonymous values?
 
-        bar map [1, 2, 3, 4] {
+        bar = map [1, 2, 3, 4] {
             foo = &<+>,
             foo = &*;
             foo = &?;
             foo = &#;
             foo = &$; &!
+        }
+
+        bar = map [1,2,3,4] {
+            foo = &?;
+        }
+        baz = zip [1,2,3] ["one", "two", "three"] {
+            value = &?.0
+            name = &?.1;
         }
         """
         actual = JsonMapping(
@@ -212,6 +220,69 @@ class Mappings(TestCase):
                 "grades": [
                     {"name": "alice", "grade": "a"},
                     {"name": "bob", "grade": "b"},
+                ]
+            },
+        )
+
+    def test_zip_array(self) -> None:
+        actual = JsonMapping(
+            """
+            numbers = zip [{"value": 1}, {"value": 2}] &names {
+                value: &value,
+                name: &name,
+            }
+            """
+        ).apply(
+            {
+                "names": [{"name": "one"}, {"name": "two"}],
+            }
+        )
+        self.assertEqual(
+            actual,
+            {
+                "numbers": [
+                    {"value": 1, "name": "one"},
+                    {"value": 2, "name": "two"},
+                ]
+            },
+        )
+
+    def test_list_indexed_map(self) -> None:
+        actual = JsonMapping(
+            """
+            numbers = map &values {
+                name = &?;
+            }
+            """
+        ).apply({"values": [1, 2, 3]})
+
+        self.assertEqual(
+            actual,
+            {
+                "numbers": [
+                    {"name": 1},
+                    {"name": 2},
+                    {"name": 3},
+                ]
+            },
+        )
+
+    def test_list_indexed_zip(self) -> None:
+        actual = JsonMapping(
+            """
+            numbers = zip [1,2,3] ["one", "two", "three"] {
+                "value": &?.0,
+                "name": &?.1,
+            }
+            """
+        ).apply({})
+        self.assertEqual(
+            actual,
+            {
+                "numbers": [
+                    {"value": 1, "name": "one"},
+                    {"value": 2, "name": "two"},
+                    {"value": 3, "name": "three"},
                 ]
             },
         )
