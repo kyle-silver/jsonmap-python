@@ -3,6 +3,8 @@
 from pprint import pprint
 from unittest import TestCase
 
+import pytest
+
 from jsonmap import tokens
 from jsonmap.tokens import BareWord, ListIndexReferenceToken, LiteralToken, ReferenceToken, Symbol, SymbolToken
 
@@ -61,6 +63,13 @@ class SingleStatementTokenization(TestCase):
             }
             """
         )
-        pprint(actual)
         self.assertTrue(ListIndexReferenceToken(position=60, path=[1], global_scope=False) in actual)
         self.assertTrue(ListIndexReferenceToken(position=88, path=[-10], global_scope=False) in actual)
+
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    def test_escape_characters(self) -> None:
+        actual = tokens.tokenize(
+            'foo = "\\x56\\uABCD\e\\b\\f\\n\\r\\t\\"\\\\";'  # pylint: disable=anomalous-backslash-in-string
+        )
+        self.assertTrue(LiteralToken(position=6, text='\x56\uABCDe\b\f\n\r\t"\\') in actual)
+        pprint(actual)

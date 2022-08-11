@@ -8,6 +8,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import IntEnum, auto
+import itertools
 from typing import List, Optional, Tuple
 
 from more_itertools import peekable
@@ -17,6 +18,16 @@ from jsonmap.error import JsonMapSyntaxError
 
 # just for the ease of reading type signatures
 Char = Tuple[int, str]
+
+ESCAPED_CHARS = {
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+    '"': '"',
+    "\\": "\\",
+}
 
 
 # pylint: disable=invalid-name
@@ -86,6 +97,13 @@ class ListIndexReferenceToken(ReferenceToken):
     """References an item's position in a list rather than its field name"""
 
 
+def _capture_escaped_hex_value(stream: peekable[Char], length: int) -> str:
+    """Capture the numeric hex value of a sequence like \xAB or \uABCD"""
+    hex_code = "".join(str(x) for _, x in itertools.islice(stream, length))
+    hex_value = int(hex_code, 16)
+    return chr(hex_value)
+
+
 def capture_string(stream: peekable[Char], delimiter: str) -> str:
     """
     Walk through the iterable and pull out a string literal sequence from the
@@ -94,7 +112,20 @@ def capture_string(stream: peekable[Char], delimiter: str) -> str:
     token = []
     while (item := next(stream))[1] != delimiter:
         _, char = item
-        token.append(char)
+        if char != "\\":
+            token.append(char)
+            continue
+        _, escape_code = next(stream)
+        if escaped := ESCAPED_CHARS.get(escape_code):
+            token.append(escaped)
+        elif escape_code == "x":
+            hex_code = _capture_escaped_hex_value(stream, length=2)
+            token.append(hex_code)
+        elif escape_code == "u":
+            hex_code = _capture_escaped_hex_value(stream, length=4)
+            token.append(hex_code)
+        else:
+            token.append(escape_code)
     return "".join(token)
 
 
