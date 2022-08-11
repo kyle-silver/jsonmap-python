@@ -9,6 +9,7 @@
   - [Map](#map)
   - [Zip](#zip)
   - [Bind](#bind)
+  - [Outside Data in Bound Scopes](#outside-data-in-bound-scopes)
 
 ## Tutorial
 
@@ -75,6 +76,26 @@ For example:
 ```txt
 speaker = &actor."first name";
 message = &line;
+```
+
+If you need to select a specific element from an array, you can use a numeric index to pull that item out.
+
+```jsonc
+// input
+{
+    "fruits": ["apples", "bananas", "cherries"]
+}
+
+// output
+{
+    "my_favorite_fruit": "bananas"
+}
+```
+
+We use the dot `.` to index into lists, not square brackets.
+
+```txt
+my_favorite_fruit = &fruits.1;
 ```
 
 ### Objects
@@ -301,6 +322,70 @@ will yield the following output:
 }
 ```
 
+When zipping, all of the namespaces from the arguments are merged.
+
 ### Bind
 
-TODO
+In cases where we need to pull a lot of data out of an object, writing the name over and over again can get tiring.
+
+```txt
+details = {
+    first_name = &customer_profile.identifiers.first_name;
+    middle_name = &customer_profile.identifiers.middle_name;
+    last_name = &customer_profile.identifiers.middle_name;
+}
+```
+
+The `bind` keyword can help cut down on this kind of clutter.
+
+```txt
+details = bind &customer_profile.identifiers {
+    first_name = &first_name;
+    middle_name = &middle_name;
+    last_name = &last_name;
+}
+```
+
+When you use `map` or `zip`, the namespaces are automatically bound.
+
+### Outside Data in Bound Scopes
+
+Sometimes when operating in a bound namespace, you will want to reference data outside of the namespace. The **global reference**, written as `&!`, will give you access to that global namespace.
+
+```jsonc
+// input
+{
+    "store": "Alice's Fruit Stand",
+    "inventory": [
+        "apples",
+        "bananas",
+        "cherries"
+    ]
+}
+
+// output
+{
+    "items": [
+        {
+            "item": "apples",
+            "store": "Alice's Fruit Stand"
+        }, 
+        {
+            "item": "bananas",
+            "store": "Alice's Fruit Stand"
+        },
+        {
+            "item": "cherries",
+            "store": "Alice's Fruit Stand"
+        }
+    ]
+```
+
+The global reference always starts from the very top namespace of the object.
+
+```txt
+items = map &inventory {
+    item = &?;
+    store = &!store;
+}
+```
