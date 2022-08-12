@@ -33,7 +33,7 @@ This program would get the job done:
 
 ```txt
 speaker = &actor;
-message = &line
+message = &line;
 ```
 
 On the left-hand side of each statement, we say what we want the name of the field to be in the output object. On the right-hand side we **reference** the name of the field in the input object with the data we want using the `&` symbol.
