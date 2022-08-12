@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple
 
 from more_itertools import peekable
 
-from jsonmap.error import JsonMapSyntaxError
+from jsonmap.error import InvalidEscapeSequence, JsonMapSyntaxError
 
 
 # just for the ease of reading type signatures
@@ -111,7 +111,7 @@ def capture_string(stream: peekable[Char], delimiter: str) -> str:
     """
     token = []
     while (item := next(stream))[1] != delimiter:
-        _, char = item
+        pos, char = item
         if char != "\\":
             token.append(char)
             continue
@@ -125,7 +125,8 @@ def capture_string(stream: peekable[Char], delimiter: str) -> str:
             hex_code = _capture_escaped_hex_value(stream, length=4)
             token.append(hex_code)
         else:
-            token.append(escape_code)
+            # token.append(escape_code)
+            raise InvalidEscapeSequence(pos, escape_code)
     return "".join(token)
 
 

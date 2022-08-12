@@ -1,9 +1,8 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring
-
-from pprint import pprint
 from unittest import TestCase
 
 from jsonmap import tokens
+from jsonmap.error import JsonMapSyntaxError
 from jsonmap.tokens import BareWord, ListIndexReferenceToken, LiteralToken, ReferenceToken, Symbol, SymbolToken
 
 
@@ -65,8 +64,9 @@ class SingleStatementTokenization(TestCase):
         self.assertTrue(ListIndexReferenceToken(position=88, path=[-10], global_scope=False) in actual)
 
     def test_escape_characters(self) -> None:
-        actual = tokens.tokenize(
-            'foo = "\\x56\\uABCD\e\\b\\f\\n\\r\\t\\"\\\\";'  # pylint: disable=anomalous-backslash-in-string
-        )
-        self.assertTrue(LiteralToken(position=6, text='\x56\uABCDe\b\f\n\r\t"\\') in actual)
-        pprint(actual)
+        actual = tokens.tokenize(r'foo = "\x56\uABCD\b\f\n\r\t\"\\";')
+        self.assertTrue(LiteralToken(position=6, text='\x56\uABCD\b\f\n\r\t"\\') in actual)
+
+    def test_invalid_escape_character(self) -> None:
+        with self.assertRaises(JsonMapSyntaxError) as e:
+            tokens.tokenize(r'foo = "\e";')

@@ -15,6 +15,20 @@ class JsonMapSyntaxError(Exception):
         super().__init__(*args)
 
 
+class InvalidEscapeSequence(JsonMapSyntaxError):
+    """
+    String literals only support a very specific set of escape codes conforming
+    o the JSON specification
+    """
+
+    def __init__(self, position: int, escape_code: str, *args: object) -> None:
+        super().__init__(
+            position,
+            rf"Escape sequence '\{escape_code}' must be one of ['\b', '\f', '\n', '\r', '\t', '\u', '\x', '\"', '\\']",
+            *args,
+        )
+
+
 SyntaxErrorDebugInfo = NamedTuple(
     "SyntaxErrorDebugInfo", [("line", int), ("column", int), ("error", JsonMapSyntaxError)]
 )
