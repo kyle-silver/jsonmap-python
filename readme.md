@@ -10,6 +10,10 @@
   - [Zip](#zip)
   - [Bind](#bind)
   - [Outside Data in Bound Scopes](#outside-data-in-bound-scopes)
+- [Usage](#usage)
+  - [Python Package](#python-package)
+  - [Command Line](#command-line)
+  - [Should I Use This In My Important Project at Work?](#should-i-use-this-in-my-important-project-at-work)
 
 ## Tutorial
 
@@ -266,11 +270,11 @@ The `zip` operation is useful when you need to iterate pairwise over multiple li
 // input
 {
     "names": [
-        { "name": "alice" }, 
+        { "name": "alice" },
         { "name": "bob" }
     ],
     "grades": [
-        { "grade": "a" }, 
+        { "grade": "a" },
         { "grade": "b" }
     ]
 }
@@ -279,11 +283,11 @@ The `zip` operation is useful when you need to iterate pairwise over multiple li
 {
     "grades": [
         {
-            "name": "alice", 
+            "name": "alice",
             "grade": "a"
         },
         {
-            "name": "bob", 
+            "name": "bob",
             "grade": "b"
         },
     ]
@@ -369,7 +373,7 @@ Sometimes when operating in a bound namespace, you will want to reference data o
         {
             "item": "apples",
             "store": "Alice's Fruit Stand"
-        }, 
+        },
         {
             "item": "bananas",
             "store": "Alice's Fruit Stand"
@@ -389,3 +393,49 @@ items = map &inventory {
     store = &!store;
 }
 ```
+
+## Usage
+
+There are two main ways to use `jsonmap`.
+
+### Python Package
+
+If you wish to use `jsonmap` as part of a a larger program, you can initialize a `JsonMapping` instance once and then reuse it over many inputs.
+
+```python
+from jsonmap import JsonMapping
+
+# we only want to parse the program once...
+mapping = JsonMapping("""
+    coach = &staff.head_coach;
+    team_members = map &roster {
+        name = &full_name;
+        number = &jersey.number;
+        specialty = &position;
+    }
+""")
+
+# later...
+for roster in team_rosters:
+    print(mapping.apply(roster))
+```
+
+### Command Line
+
+You can also run this module directly as a CLI.
+
+```bash
+jsonmap team_summaries.jsonmap roster.json
+```
+
+JSON data can also be accepted from `stdin`.
+
+```bash
+cat roster.json | jsonmap team_summaries.jsonmap
+```
+
+### Should I Use This In My Important Project at Work?
+
+**NOOOOOO!!!!**
+
+I wrote this project mainly to learn about interpreters. There are almost certainly bugs in here that I haven't caught, and this will always be slower, harder to test, and more convoluted than just writing the mapping code yourself. Please, play around with this and have fun, but for the love of Pete don't rely on this for anything important.

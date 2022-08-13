@@ -1,7 +1,6 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring
 
 import json
-from pprint import pprint
 from unittest import TestCase
 
 from jsonmap import JsonMapping

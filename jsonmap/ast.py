@@ -403,7 +403,6 @@ class Zip(CollectionOperation):
         indexed = []
         for index, arg_list in enumerate(resolved):
             if all(isinstance(arg, dict) for arg in arg_list):
-                print("all dictionaries!")
                 indexed.append(arg_list)
             else:
                 deanonymized = [{index: arg} for arg in arg_list]
@@ -411,7 +410,6 @@ class Zip(CollectionOperation):
 
         zipped = zip(*indexed)
         merged_scopes: List[Dict[str | int, Json]] = [reduce(operator.ior, scopes, {}) for scopes in zipped]
-        pprint(merged_scopes)
         return [super(Zip, self).evaluate(zipped_scope, universe) for zipped_scope in merged_scopes]
 
 

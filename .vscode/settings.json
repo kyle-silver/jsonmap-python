@@ -11,6 +11,7 @@
     "cSpell.words": [
         "dataclass",
         "deanonymized",
+        "infile",
         "jsonmap",
         "peekable",
         "typedefs"
